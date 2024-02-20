@@ -1,0 +1,19 @@
+{
+  "kind": "storage#object",
+  "id": "mizutani-test/GAvgnKcbIAA3jO7.jpg/1707614985153044",
+  "selfLink": "https://www.googleapis.com/storage/v1/b/mizutani-test/o/GAvgnKcbIAA3jO7.jpg",
+  "name": "GAvgnKcbIAA3jO7.jpg",
+  "bucket": "mizutani-test",
+  "generation": "1707614985153044",
+  "metageneration": "1",
+  "contentType": "image/jpeg",
+  "timeCreated": "2024-02-11T01:29:45.156Z",
+  "updated": "2024-02-11T01:29:45.156Z",
+  "storageClass": "STANDARD",
+  "timeStorageClassUpdated": "2024-02-11T01:29:45.156Z",
+  "size": "563285",
+  "md5Hash": "EiifNDcphhbkRJe6e7JrcA==",
+  "mediaLink": "https://storage.googleapis.com/download/storage/v1/b/mizutani-test/o/GAvgnKcbIAA3jO7.jpg?generation=1707614985153044&alt=media",
+  "crc32c": "/EVqSQ==",
+  "etag": "CJTU6cSRooQDEAE="
+}

@@ -1,0 +1,182 @@
+package policy
+
+import (
+	"context"
+	"encoding/json"
+	"io/fs"
+	"os"
+	"path/filepath"
+
+	"github.com/m-mizutani/goerr"
+	"github.com/m-mizutani/swarm/pkg/domain/types"
+	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/rego"
+	"github.com/open-policy-agent/opa/topdown/print"
+)
+
+// Client is a policy engine client
+type Client struct {
+	dirs     []string
+	files    []string
+	policies map[string]string
+
+	readFile readFile
+
+	compiler *ast.Compiler
+}
+
+type RegoPrint func(file string, row int, msg string) error
+type readFile func(string) ([]byte, error)
+
+// Option is a functional option for Client
+type Option func(x *Client)
+
+// WithDir specifies directory path of .rego policy. Import policy files recursively.
+func WithDir(dirPath string) Option {
+	return func(x *Client) {
+		x.dirs = append(x.dirs, filepath.Clean(dirPath))
+	}
+}
+
+// WithFile specifies file path of .rego policy. Import policy files recursively.
+func WithFile(filePath string) Option {
+	return func(x *Client) {
+		x.files = append(x.files, filepath.Clean(filePath))
+	}
+}
+
+// WithReadFile specifies file path of .rego policy. Import policy files recursively.
+func WithReadFile(fn func(string) ([]byte, error)) Option {
+	return func(x *Client) {
+		x.readFile = fn
+	}
+}
+
+// WithPolicyData specifies raw policy data with name. If the `name` conflicts with file path loaded by WithFile or WithDir, the policy overwrites data loaded by WithFile or WithDir.
+func WithPolicyData(name, policy string) Option {
+	return func(x *Client) {
+		x.policies[name] = policy
+	}
+}
+
+// New creates a new Local client. It requires one or more WithFile, WithDir or WithPolicyData.
+func New(options ...Option) (*Client, error) {
+	client := &Client{
+		policies: make(map[string]string),
+	}
+	for _, opt := range options {
+		opt(client)
+	}
+
+	var targetFiles []string
+	for _, dirPath := range client.dirs {
+		err := filepath.WalkDir(dirPath, func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return goerr.Wrap(err, "Failed to walk directory").With("path", path)
+			}
+			if d.IsDir() {
+				return nil
+			}
+			if filepath.Ext(path) != ".rego" {
+				return nil
+			}
+
+			targetFiles = append(targetFiles, path)
+
+			return nil
+		})
+		if err != nil {
+			return nil, goerr.Wrap(err)
+		}
+	}
+	targetFiles = append(targetFiles, client.files...)
+
+	for _, filePath := range targetFiles {
+		raw, err := os.ReadFile(filepath.Clean(filePath))
+		if err != nil {
+			return nil, goerr.Wrap(err, "Failed to read policy file").With("path", filePath)
+		}
+
+		client.policies[filePath] = string(raw)
+	}
+
+	for k, v := range client.policies {
+		client.policies[k] = v
+	}
+
+	if len(client.policies) == 0 {
+		return nil, goerr.Wrap(types.ErrNoPolicyData)
+	}
+
+	compiler, err := ast.CompileModulesWithOpt(client.policies, ast.CompileOpts{
+		EnablePrintStatements: true,
+	})
+	if err != nil {
+		return nil, goerr.Wrap(err)
+	}
+	client.compiler = compiler
+
+	return client, nil
+}
+
+type queryConfig struct {
+	regoPrint RegoPrint
+}
+
+func newQueryConfig(options ...QueryOption) *queryConfig {
+	cfg := &queryConfig{}
+	for _, opt := range options {
+		opt(cfg)
+	}
+	return cfg
+}
+
+type QueryOption func(cfg *queryConfig)
+
+func WithRegoPrint(callback RegoPrint) QueryOption {
+	return func(cfg *queryConfig) {
+		cfg.regoPrint = callback
+	}
+}
+
+// Query evaluates policy with `input` data. The result will be written to `out`. `out` must be pointer of instance.
+func (x *Client) Query(ctx context.Context, query string, input interface{}, output interface{}, options ...QueryOption) error {
+	cfg := newQueryConfig(options...)
+
+	regoOpt := []func(r *rego.Rego){
+		rego.Query(query),
+		rego.Compiler(x.compiler),
+		rego.Input(input),
+	}
+	if cfg.regoPrint != nil {
+		regoOpt = append(regoOpt, rego.PrintHook(&regoPrintHook{
+			callback: cfg.regoPrint,
+		}))
+	}
+
+	rs, err := rego.New(regoOpt...).Eval(ctx)
+	if err != nil {
+		return goerr.Wrap(err, "fail to eval local policy").With("input", input)
+	}
+	if len(rs) == 0 || len(rs[0].Expressions) == 0 {
+		return goerr.Wrap(types.ErrNoPolicyResult)
+	}
+
+	raw, err := json.Marshal(rs[0].Expressions[0].Value)
+	if err != nil {
+		return goerr.Wrap(err, "fail to marshal a result of rego.Eval").With("rs", rs)
+	}
+	if err := json.Unmarshal(raw, output); err != nil {
+		return goerr.Wrap(err, "fail to unmarshal a result of rego.Eval to out").With("rs", rs)
+	}
+
+	return nil
+}
+
+type regoPrintHook struct {
+	callback RegoPrint
+}
+
+func (x *regoPrintHook) Print(ctx print.Context, msg string) error {
+	return x.callback(ctx.Location.File, ctx.Location.Row, msg)
+}

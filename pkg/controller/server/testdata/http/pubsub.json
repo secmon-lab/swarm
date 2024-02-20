@@ -1,0 +1,19 @@
+{
+  "message": {
+    "attributes": {
+      "bucketId": "mztn-sample-bucket",
+      "eventTime": "2024-02-17T00:48:27.868175Z",
+      "eventType": "OBJECT_FINALIZE",
+      "notificationConfig": "projects/_/buckets/mztn-sample-bucket/notificationConfigs/1",
+      "objectGeneration": "1708130907832889",
+      "objectId": "mydir/GA1ZivRbQAAAyXs.jpg",
+      "payloadFormat": "JSON_API_V1"
+    },
+    "data": "ewogICJraW5kIjogInN0b3JhZ2Ujb2JqZWN0IiwKICAiaWQiOiAibXp0bi1zYW1wbGUtYnVja2V0L215ZGlyL0dBMVppdlJiUUFBQXlYcy5qcGcvMTcwODEzMDkwNzgzMjg4OSIsCiAgInNlbGZMaW5rIjogImh0dHBzOi8vd3d3Lmdvb2dsZWFwaXMuY29tL3N0b3JhZ2UvdjEvYi9tenRuLXNhbXBsZS1idWNrZXQvby9teWRpciUyRkdBMVppdlJiUUFBQXlYcy5qcGciLAogICJuYW1lIjogIm15ZGlyL0dBMVppdlJiUUFBQXlYcy5qcGciLAogICJidWNrZXQiOiAibXp0bi1zYW1wbGUtYnVja2V0IiwKICAiZ2VuZXJhdGlvbiI6ICIxNzA4MTMwOTA3ODMyODg5IiwKICAibWV0YWdlbmVyYXRpb24iOiAiMSIsCiAgImNvbnRlbnRUeXBlIjogImltYWdlL2pwZWciLAogICJ0aW1lQ3JlYXRlZCI6ICIyMDI0LTAyLTE3VDAwOjQ4OjI3Ljg2OFoiLAogICJ1cGRhdGVkIjogIjIwMjQtMDItMTdUMDA6NDg6MjcuODY4WiIsCiAgInN0b3JhZ2VDbGFzcyI6ICJTVEFOREFSRCIsCiAgInRpbWVTdG9yYWdlQ2xhc3NVcGRhdGVkIjogIjIwMjQtMDItMTdUMDA6NDg6MjcuODY4WiIsCiAgInNpemUiOiAiNDM0MzU4IiwKICAibWQ1SGFzaCI6ICI2NXVLUXBaaWlzdTlrUDhnQmwrNTBRPT0iLAogICJtZWRpYUxpbmsiOiAiaHR0cHM6Ly9zdG9yYWdlLmdvb2dsZWFwaXMuY29tL2Rvd25sb2FkL3N0b3JhZ2UvdjEvYi9tenRuLXNhbXBsZS1idWNrZXQvby9teWRpciUyRkdBMVppdlJiUUFBQXlYcy5qcGc/Z2VuZXJhdGlvbj0xNzA4MTMwOTA3ODMyODg5JmFsdD1tZWRpYSIsCiAgImNyYzMyYyI6ICJJbnRzK0E9PSIsCiAgImV0YWciOiAiQ0xtRTk3K1RzWVFERUFFPSIKfQo=",
+    "messageId": "10509751019207081",
+    "message_id": "10509751019207081",
+    "publishTime": "2024-02-17T00:48:27.961Z",
+    "publish_time": "2024-02-17T00:48:27.961Z"
+  },
+  "subscription": "projects/mztn-dep/subscriptions/test-sub"
+}
