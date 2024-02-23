@@ -18,7 +18,7 @@ func (x *UseCase) CreateOrUpdateTable(ctx context.Context, datasetID types.BQDat
 
 	if old == nil {
 		utils.CtxLogger(ctx).Info("creating new table", "datasetID", datasetID, "tableID", tableID)
-		return nil, x.clients.BigQuery().CreateTable(ctx, datasetID, tableID, md)
+		return md.Schema, x.clients.BigQuery().CreateTable(ctx, datasetID, tableID, md)
 	}
 
 	merged, err := bqs.Merge(old.Schema, md.Schema)

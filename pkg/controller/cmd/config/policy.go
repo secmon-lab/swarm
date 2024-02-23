@@ -13,7 +13,7 @@ func (x *Policy) Flags() []cli.Flag {
 	return []cli.Flag{
 		&cli.StringSliceFlag{
 			Name:        "policy-dir",
-			Aliases:     []string{"d"},
+			Aliases:     []string{"p"},
 			Usage:       "Directory path of policy files",
 			EnvVars:     []string{"SWARM_POLICY_DIR"},
 			Destination: &x.dir,

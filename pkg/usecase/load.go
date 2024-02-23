@@ -66,6 +66,8 @@ func (x *UseCase) LoadData(ctx context.Context, req *model.LoadDataRequest) (e e
 		FinishedAt: time.Now(),
 	}
 
+	saveLog := func() {}
+
 	if x.metadata != nil {
 		schema, err := bqs.Infer(&model.EventLog{
 			Ingests: []*model.IngestLog{{}},
@@ -75,19 +77,28 @@ func (x *UseCase) LoadData(ctx context.Context, req *model.LoadDataRequest) (e e
 		}
 		md := &bigquery.TableMetadata{
 			Schema: schema,
+			TimePartitioning: &bigquery.TimePartitioning{
+				Field: "StartedAt",
+				Type:  bigquery.MonthPartitioningType,
+			},
 		}
 		if _, err := x.CreateOrUpdateTable(ctx, x.metadata.Dataset(), x.metadata.Table(), md); err != nil {
 			return goerr.Wrap(err, "failed to create or update table").With("req", req)
 		}
 
-		defer func() {
-			eventLog.FinishedAt = time.Now()
+		saveLog = func() {
 			if err := x.clients.BigQuery().Insert(ctx, x.metadata.Dataset(), x.metadata.Table(), schema, []any{eventLog.Raw()}); err != nil {
 				utils.HandleError(ctx, "failed to insert request log", err)
 				e = err
 			}
-		}()
+		}
 	}
+
+	defer func() {
+		eventLog.FinishedAt = time.Now()
+		utils.CtxLogger(ctx).Info("request handled", "req", req, "eventLog", eventLog)
+		saveLog()
+	}()
 
 	sLogs, err := x.handleEvent(ctx, req)
 	eventLog.Ingests = sLogs
@@ -206,24 +217,39 @@ func (x *UseCase) ingestRecords(ctx context.Context, bqDst model.BigQueryDest, r
 
 	md := &bigquery.TableMetadata{
 		Schema: schema,
-		TimePartitioning: &bigquery.TimePartitioning{
-			Field: "Timestamp",
-			Type:  bigquery.DayPartitioningType,
-		},
+	}
+
+	tpMap := map[types.BQTimeUnit]bigquery.TimePartitioningType{
+		types.BQTimeUnitHour:  bigquery.HourPartitioningType,
+		types.BQTimeUnitDay:   bigquery.DayPartitioningType,
+		types.BQTimeUnitMonth: bigquery.MonthPartitioningType,
+		types.BQTimeUnitYear:  bigquery.YearPartitioningType,
+	}
+	if bqDst.TimeUnit != "" {
+		if t, ok := tpMap[bqDst.TimeUnit]; ok {
+			md.TimePartitioning = &bigquery.TimePartitioning{
+				Field: "Timestamp",
+				Type:  t,
+			}
+		} else {
+			return result, goerr.Wrap(types.ErrInvalidPolicyResult, "invalid time unit").With("timeunit", bqDst.TimeUnit)
+		}
 	}
 
 	finalized, err := x.CreateOrUpdateTable(ctx, bqDst.Dataset, bqDst.Table, md)
 	if err != nil {
 		return result, goerr.Wrap(err, "failed to update schema").With("dst", bqDst)
 	}
-	jsonSchema, err := schema.ToJSONFields()
+
+	jsonSchema, err := schemaToJSON(schema)
 	if err != nil {
-		return result, goerr.Wrap(err, "failed to convert schema to JSON").With("schema", schema)
+		return result, err
 	}
 	result.TableSchema = string(jsonSchema)
 
 	data := make([]any, len(records))
 	for i := range records {
+		records[i].IngestID = ingestID
 		data[i] = records[i].Raw()
 	}
 
@@ -243,7 +269,7 @@ func downloadCloudStorageObject(ctx context.Context, csClient interfaces.CloudSt
 	}
 	defer reader.Close()
 
-	if s.Comp == types.GZIPComp {
+	if s.Compress == types.GZIPComp {
 		r, err := gzip.NewReader(reader)
 		if err != nil {
 			return nil, goerr.Wrap(err, "failed to create gzip reader").With("bucket", bucket).With("objID", objID)

@@ -1,8 +1,13 @@
 package usecase
 
 import (
+	"bytes"
+	"encoding/json"
 	"reflect"
 	"unsafe"
+
+	"cloud.google.com/go/bigquery"
+	"github.com/m-mizutani/goerr"
 )
 
 func cloneWithoutNil(src interface{}) interface{} {
@@ -106,4 +111,18 @@ func clone(fieldName string, src reflect.Value) reflect.Value {
 		dst.Elem().Set(src)
 		return dst.Elem()
 	}
+}
+
+func schemaToJSON(schema bigquery.Schema) (string, error) {
+	jsonSchema, err := schema.ToJSONFields()
+	if err != nil {
+		return "", goerr.Wrap(err, "failed to convert schema to JSON").With("schema", schema)
+	}
+
+	var out bytes.Buffer
+	if err := json.Compact(&out, jsonSchema); err != nil {
+		return "", goerr.Wrap(err, "failed to compact JSON").With("schema", schema).With("json", string(jsonSchema))
+	}
+
+	return out.String(), nil
 }

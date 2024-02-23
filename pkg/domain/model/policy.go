@@ -24,28 +24,28 @@ type EventPolicyOutput struct {
 
 type Source struct {
 	// Source object information
-	Format types.ObjectFormat `json:"format"`
-	Schema types.ObjectSchema `json:"schema"`
-	Comp   types.ObjectComp   `json:"comp"`
+	Parser   types.ObjectParser   `json:"parser"`
+	Schema   types.ObjectSchema   `json:"schema"`
+	Compress types.ObjectCompress `json:"compress"`
 }
 
 func (x Source) Validate() error {
-	switch x.Format {
-	case types.JSONFormat:
+	switch x.Parser {
+	case types.JSONParser:
 		// OK
 	default:
-		return goerr.Wrap(types.ErrInvalidPolicyResult, "src.format is invalid").With("format", x.Format)
+		return goerr.Wrap(types.ErrInvalidPolicyResult, "src.format is invalid").With("format", x.Parser)
 	}
 
 	if x.Schema == "" {
 		return goerr.Wrap(types.ErrInvalidPolicyResult, "src.record is required")
 	}
 
-	switch x.Comp {
+	switch x.Compress {
 	case types.GZIPComp, "":
 		// OK
 	default:
-		return goerr.Wrap(types.ErrInvalidPolicyResult, "src.comp is invalid").With("comp", x.Comp)
+		return goerr.Wrap(types.ErrInvalidPolicyResult, "src.comp is invalid").With("comp", x.Compress)
 	}
 
 	return nil
@@ -56,8 +56,9 @@ type SchemaPolicyOutput struct {
 }
 
 type BigQueryDest struct {
-	Dataset types.BQDatasetID `json:"dataset"`
-	Table   types.BQTableID   `json:"table"`
+	Dataset  types.BQDatasetID `json:"dataset"`
+	Table    types.BQTableID   `json:"table"`
+	TimeUnit types.BQTimeUnit  `json:"timeunit"`
 }
 
 type Log struct {

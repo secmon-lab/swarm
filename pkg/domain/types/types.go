@@ -40,9 +40,18 @@ type GoogleProjectID string
 
 type BQDatasetID string
 type BQTableID string
+type BQTimeUnit string
 
 func (x BQDatasetID) String() string { return string(x) }
 func (x BQTableID) String() string   { return string(x) }
+
+const (
+	BQTimeUnitNone  BQTimeUnit = ""
+	BQTimeUnitHour  BQTimeUnit = "hour"
+	BQTimeUnitDay   BQTimeUnit = "day"
+	BQTimeUnitMonth BQTimeUnit = "month"
+	BQTimeUnitYear  BQTimeUnit = "year"
+)
 
 type CSBucket string
 type CSObjectID string
@@ -79,16 +88,16 @@ func (x CSUrl) Parse() (CSBucket, CSObjectID, error) {
 }
 
 // Object information
-type ObjectFormat string
+type ObjectParser string
 
 const (
-	JSONFormat ObjectFormat = "json"
+	JSONParser ObjectParser = "json"
 )
 
-type ObjectComp string
+type ObjectCompress string
 
 const (
-	GZIPComp ObjectComp = "gzip"
+	GZIPComp ObjectCompress = "gzip"
 )
 
 type ObjectSchema string
