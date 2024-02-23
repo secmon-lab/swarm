@@ -57,3 +57,52 @@ func (x *Mock) UpdateTable(ctx context.Context, datasetID types.BQDatasetID, tab
 	}
 	return nil
 }
+
+func NewGeneralMock() *generalMock {
+	return &generalMock{}
+}
+
+type generalMock struct {
+	Inserted []insertedData
+	Metadata bigquery.TableMetadata
+}
+
+// CreateTable implements interfaces.BigQuery.
+func (*generalMock) CreateTable(ctx context.Context, dataset types.BQDatasetID, table types.BQTableID, md *bigquery.TableMetadata) error {
+	return nil
+}
+
+// GetMetadata implements interfaces.BigQuery.
+func (x *generalMock) GetMetadata(ctx context.Context, dataset types.BQDatasetID, table types.BQTableID) (*bigquery.TableMetadata, error) {
+	return &x.Metadata, nil
+}
+
+// Insert implements interfaces.BigQuery.
+func (x *generalMock) Insert(ctx context.Context, datasetID types.BQDatasetID, tableID types.BQTableID, schema bigquery.Schema, data []any) error {
+	x.Inserted = append(x.Inserted, insertedData{
+		DatasetID: datasetID,
+		TableID:   tableID,
+		Schema:    schema,
+		Data:      data,
+	})
+	return nil
+}
+
+// Query implements interfaces.BigQuery.
+func (*generalMock) Query(ctx context.Context, query string) (interfaces.BigQueryIterator, error) {
+	panic("generalMock does not support Query method")
+}
+
+// UpdateTable implements interfaces.BigQuery.
+func (*generalMock) UpdateTable(ctx context.Context, dataset types.BQDatasetID, table types.BQTableID, md bigquery.TableMetadataToUpdate, eTag string) error {
+	return nil
+}
+
+type insertedData struct {
+	DatasetID types.BQDatasetID
+	TableID   types.BQTableID
+	Schema    bigquery.Schema
+	Data      []any
+}
+
+var _ interfaces.BigQuery = &generalMock{}

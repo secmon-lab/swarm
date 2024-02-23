@@ -1,0 +1,192 @@
+{
+  "Records": [
+    {
+      "eventVersion": "1.07",
+      "userIdentity": {
+        "type": "AWSService",
+        "invokedBy": "delivery.logs.amazonaws.com"
+      },
+      "eventTime": "2020-03-02T23:55:50Z",
+      "eventSource": "s3.amazonaws.com",
+      "eventName": "PutObject",
+      "awsRegion": "ap-northeast-1",
+      "sourceIPAddress": "delivery.logs.amazonaws.com",
+      "userAgent": "delivery.logs.amazonaws.com",
+      "requestParameters": {
+        "bucketName": "mizutani-flow-logs",
+        "Host": "mizutani-flow-logs.s3.ap-northeast-1.amazonaws.com",
+        "x-amz-acl": "bucket-owner-full-control",
+        "key": "AWSLogs/783957204773/vpcflowlogs/us-east-1/2020/03/02/783957204773_vpcflowlogs_us-east-1_fl-02aaec76b480e0339_20200302T2350Z_6cfe747e.log.gz"
+      },
+      "responseElements": null,
+      "additionalEventData": {
+        "SignatureVersion": "SigV4",
+        "CipherSuite": "ECDHE-RSA-AES128-SHA",
+        "bytesTransferredIn": 1228.0,
+        "AuthenticationMethod": "AuthHeader",
+        "x-amz-id-2": "LPNjQMCkVMnxHVGvmu+/J6dHnU0fHhW/39hOdvB3EEtiDawbldFOFbbM7tVo9PNZHK17jcaCGus=",
+        "bytesTransferredOut": 0.0
+      },
+      "requestID": "D493BF6281B6E1F2",
+      "eventID": "d4dacb9d-9822-4217-b88d-d334bde89755",
+      "readOnly": false,
+      "resources": [
+        {
+          "type": "AWS::S3::Object",
+          "ARN": "arn:aws:s3:::mizutani-flow-logs/AWSLogs/783957204773/vpcflowlogs/us-east-1/2020/03/02/783957204773_vpcflowlogs_us-east-1_fl-02aaec76b480e0339_20200302T2350Z_6cfe747e.log.gz"
+        },
+        {
+          "accountId": "783957204773",
+          "type": "AWS::S3::Bucket",
+          "ARN": "arn:aws:s3:::mizutani-flow-logs"
+        }
+      ],
+      "eventType": "AwsApiCall",
+      "managementEvent": false,
+      "recipientAccountId": "783957204773",
+      "sharedEventID": "13efa2e6-f336-4ca7-99f1-eee188b479f2",
+      "eventCategory": "Data"
+    },
+    {
+      "eventVersion": "1.07",
+      "userIdentity": {
+        "type": "AWSService",
+        "invokedBy": "delivery.logs.amazonaws.com"
+      },
+      "eventTime": "2020-03-02T23:55:49Z",
+      "eventSource": "s3.amazonaws.com",
+      "eventName": "PutObject",
+      "awsRegion": "ap-northeast-1",
+      "sourceIPAddress": "delivery.logs.amazonaws.com",
+      "userAgent": "delivery.logs.amazonaws.com",
+      "requestParameters": {
+        "bucketName": "mizutani-flow-logs",
+        "Host": "mizutani-flow-logs.s3.ap-northeast-1.amazonaws.com",
+        "x-amz-acl": "bucket-owner-full-control",
+        "key": "AWSLogs/783957204773/vpcflowlogs/us-east-1/2020/03/02/783957204773_vpcflowlogs_us-east-1_fl-02aaec76b480e0339_20200302T2355Z_39c0b500.log.gz"
+      },
+      "responseElements": null,
+      "additionalEventData": {
+        "SignatureVersion": "SigV4",
+        "CipherSuite": "ECDHE-RSA-AES128-SHA",
+        "bytesTransferredIn": 303.0,
+        "AuthenticationMethod": "AuthHeader",
+        "x-amz-id-2": "jPIOjtz+kWYKpZ8UglOLFMc9Jb1RePPlgJHrlLrLWjRyCdjp1DMRqAp6TIJf43Z1G4fFcmMc9GY=",
+        "bytesTransferredOut": 0.0
+      },
+      "requestID": "D8FE34C4642F8011",
+      "eventID": "ac3cfd93-435d-41cc-bbd7-aad0340ec668",
+      "readOnly": false,
+      "resources": [
+        {
+          "type": "AWS::S3::Object",
+          "ARN": "arn:aws:s3:::mizutani-flow-logs/AWSLogs/783957204773/vpcflowlogs/us-east-1/2020/03/02/783957204773_vpcflowlogs_us-east-1_fl-02aaec76b480e0339_20200302T2355Z_39c0b500.log.gz"
+        },
+        {
+          "accountId": "783957204773",
+          "type": "AWS::S3::Bucket",
+          "ARN": "arn:aws:s3:::mizutani-flow-logs"
+        }
+      ],
+      "eventType": "AwsApiCall",
+      "managementEvent": false,
+      "recipientAccountId": "783957204773",
+      "sharedEventID": "8703004a-e274-487e-87b6-f448ff2dc4f2",
+      "eventCategory": "Data"
+    },
+    {
+      "eventVersion": "1.07",
+      "userIdentity": {
+        "type": "AWSService",
+        "invokedBy": "delivery.logs.amazonaws.com"
+      },
+      "eventTime": "2020-03-03T00:00:49Z",
+      "eventSource": "s3.amazonaws.com",
+      "eventName": "PutObject",
+      "awsRegion": "ap-northeast-1",
+      "sourceIPAddress": "delivery.logs.amazonaws.com",
+      "userAgent": "delivery.logs.amazonaws.com",
+      "requestParameters": {
+        "bucketName": "mizutani-flow-logs",
+        "Host": "mizutani-flow-logs.s3.ap-northeast-1.amazonaws.com",
+        "x-amz-acl": "bucket-owner-full-control",
+        "key": "AWSLogs/783957204773/vpcflowlogs/us-east-1/2020/03/02/783957204773_vpcflowlogs_us-east-1_fl-02aaec76b480e0339_20200302T2355Z_43b48104.log.gz"
+      },
+      "responseElements": null,
+      "additionalEventData": {
+        "SignatureVersion": "SigV4",
+        "CipherSuite": "ECDHE-RSA-AES128-SHA",
+        "bytesTransferredIn": 896.0,
+        "AuthenticationMethod": "AuthHeader",
+        "x-amz-id-2": "WvT0COvPiYADdqo3iB32uFKUKJuqU/Gnu4tAM/irYAgh6g3kfgv0GcSS5C19/6LlbvjlnKvGxxU=",
+        "bytesTransferredOut": 0.0
+      },
+      "requestID": "F4CF815CC982B266",
+      "eventID": "dbb28938-5ed4-4774-8bb6-82ea916b21bb",
+      "readOnly": false,
+      "resources": [
+        {
+          "type": "AWS::S3::Object",
+          "ARN": "arn:aws:s3:::mizutani-flow-logs/AWSLogs/783957204773/vpcflowlogs/us-east-1/2020/03/02/783957204773_vpcflowlogs_us-east-1_fl-02aaec76b480e0339_20200302T2355Z_43b48104.log.gz"
+        },
+        {
+          "accountId": "783957204773",
+          "type": "AWS::S3::Bucket",
+          "ARN": "arn:aws:s3:::mizutani-flow-logs"
+        }
+      ],
+      "eventType": "AwsApiCall",
+      "managementEvent": false,
+      "recipientAccountId": "783957204773",
+      "sharedEventID": "949e3fe6-cd7a-42aa-8a42-97419ed66c9c",
+      "eventCategory": "Data"
+    },
+    {
+      "eventVersion": "1.07",
+      "userIdentity": {
+        "type": "AWSService",
+        "invokedBy": "delivery.logs.amazonaws.com"
+      },
+      "eventTime": "2020-03-03T00:00:49Z",
+      "eventSource": "s3.amazonaws.com",
+      "eventName": "PutObject",
+      "awsRegion": "ap-northeast-1",
+      "sourceIPAddress": "delivery.logs.amazonaws.com",
+      "userAgent": "delivery.logs.amazonaws.com",
+      "requestParameters": {
+        "bucketName": "mizutani-flow-logs",
+        "Host": "mizutani-flow-logs.s3.ap-northeast-1.amazonaws.com",
+        "x-amz-acl": "bucket-owner-full-control",
+        "key": "AWSLogs/783957204773/vpcflowlogs/us-east-1/2020/03/03/783957204773_vpcflowlogs_us-east-1_fl-02aaec76b480e0339_20200303T0000Z_bdc48743.log.gz"
+      },
+      "responseElements": null,
+      "additionalEventData": {
+        "SignatureVersion": "SigV4",
+        "CipherSuite": "ECDHE-RSA-AES128-SHA",
+        "bytesTransferredIn": 316.0,
+        "AuthenticationMethod": "AuthHeader",
+        "x-amz-id-2": "BmT0H4SnoSSsbaTaKaRy5pR7vioi7mcGG8XYYH8XFYDJtbVXiL4b9R4qYQBr8RxUIqQF400afhk=",
+        "bytesTransferredOut": 0.0
+      },
+      "requestID": "0430EF222D27C318",
+      "eventID": "18e67b09-94a3-4b5c-9b3a-cd549b3341fb",
+      "readOnly": false,
+      "resources": [
+        {
+          "type": "AWS::S3::Object",
+          "ARN": "arn:aws:s3:::mizutani-flow-logs/AWSLogs/783957204773/vpcflowlogs/us-east-1/2020/03/03/783957204773_vpcflowlogs_us-east-1_fl-02aaec76b480e0339_20200303T0000Z_bdc48743.log.gz"
+        },
+        {
+          "accountId": "783957204773",
+          "type": "AWS::S3::Bucket",
+          "ARN": "arn:aws:s3:::mizutani-flow-logs"
+        }
+      ],
+      "eventType": "AwsApiCall",
+      "managementEvent": false,
+      "recipientAccountId": "783957204773",
+      "sharedEventID": "549d3353-4963-412c-a1a0-aeb4657f6e47",
+      "eventCategory": "Data"
+    }
+  ]
+}

@@ -1,7 +1,10 @@
 package usecase_test
 
 import (
+	"bytes"
 	"context"
+	_ "embed"
+	"io"
 	"testing"
 
 	"github.com/m-mizutani/gt"
@@ -38,4 +41,72 @@ func TestLoadDataByObject(t *testing.T) {
 	)
 
 	gt.NoError(t, uc.LoadDataByObject(ctx, types.CSUrl(gcsURL)))
+}
+
+//go:embed testdata/object/cloudtrail_example.json
+var cloudTrailExampleRaw []byte
+
+//go:embed testdata/object/cloudtrail_example.json.gz
+var cloudTrailExampleGzip []byte
+
+func TestLoadData(t *testing.T) {
+	testCases := map[string]struct {
+		objectName types.CSObjectID
+		objectData []byte
+	}{
+		"cloudtrail_example.json": {
+			objectName: "cloudtrail_example.log",
+			objectData: cloudTrailExampleRaw,
+		},
+		"cloudtrail_example.json.gz": {
+			objectName: "cloudtrail_example.log.gz",
+			objectData: cloudTrailExampleGzip,
+		},
+	}
+
+	for label, tc := range testCases {
+		t.Run(label, func(t *testing.T) {
+			ctx := context.Background()
+			bqClient := bq.NewGeneralMock()
+			csClient := &cs.Mock{
+				MockOpen: func(ctx context.Context, bucket types.CSBucket, object types.CSObjectID) (io.ReadCloser, error) {
+					return io.NopCloser(bytes.NewReader([]byte(tc.objectData))), nil
+				},
+			}
+			pClient := gt.R1(policy.New(policy.WithDir("testdata/policy"))).NoError(t)
+			meta := model.NewMetadataConfig("test-dataset", "test-table")
+
+			uc := usecase.New(
+				infra.New(
+					infra.WithBigQuery(bqClient),
+					infra.WithCloudStorage(csClient),
+					infra.WithPolicy(pClient),
+				),
+				usecase.WithMetadata(meta),
+			)
+
+			req := &model.LoadDataRequest{
+				CSEvent: &model.CloudStorageEvent{
+					Kind:   "storage#object",
+					Bucket: "cloudtrail-logs",
+					Name:   tc.objectName,
+				},
+			}
+
+			gt.NoError(t, uc.LoadData(ctx, req))
+
+			ids := []types.LogID{
+				"ac3cfd93-435d-41cc-bbd7-aad0340ec668",
+				"18e67b09-94a3-4b5c-9b3a-cd549b3341fb",
+				"dbb28938-5ed4-4774-8bb6-82ea916b21bb",
+				"d4dacb9d-9822-4217-b88d-d334bde89755",
+			}
+			gt.A(t, bqClient.Inserted).Length(2)
+			gt.A(t, bqClient.Inserted[0].Data).Length(4)
+			for i, id := range ids {
+				r := gt.Cast[*model.LogRecordRaw](t, bqClient.Inserted[0].Data[i])
+				gt.Equal(t, r.ID, id)
+			}
+		})
+	}
 }
