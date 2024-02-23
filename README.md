@@ -6,25 +6,26 @@ A tool to ingest log data with a dynamic schema from Google Cloud Storage into B
 
 ## Features
 
-- Cloud Storage からオブジェクトを取得し、BigQuery にデータを投入する
-- Pub/Sub を経由して Cloud Storage からオブジェクト保存などのイベントを取得し、そのオブジェクトをリアルタイムに取り込む
-- オブジェクトのスキーマを自動検出し、BigQuery にテーブルを作成、あるいはスキーマを更新する
-- Regoによってデータの取り込み方法の決定や、レコードごとの保存するデータの修正や、保存先の決定を制御できる
-- (To be implemented) Cloud Storage のバケットに保存されたオブジェクトをすべて読み込み、BigQueryのテーブルを再構築する
+- Retrieve objects from Cloud Storage and ingest data into BigQuery
+- Receive events such as creation of object storage from Cloud Storage via Pub/Sub and ingest the objects in near real-time
+- Automatically detect the schema of objects and create tables in BigQuery or update the schema
+- Control the ingestion method of data, modify data for each record, and determine the destination to save using Rego
+- (To be implemented) Read all objects stored in a Cloud Storage bucket and rebuild the BigQuery table
 
 ## Getting Started
 
-手始めに、ローカル環境から実行してみましょう。実際のデプロイについてはは[Deployment](docs/deployment.md)を参照してください。本来 Swarm はPub/Sub経由でCloud Storageからオブジェクト生成などのイベントを受けて処理をするものですが、今回はすでにCloud Storage上にあるオブジェクトを直接指定し、BigQueryに投入するというコマンドを実行します。
+First, let's try running it from the local environment. For actual deployment, please refer to [Deployment](docs/deployment.md). Normally, Swarm processes events such as object creation from Cloud Storage via Pub/Sub, but this time we will execute a command to directly specify the objects already on Cloud Storage and ingest them into BigQuery.
 
 ### Prerequisites
 
 - Go 1.22 or later
-- Google Cloudのプロジェクト（例: `my-project`）
-- Cloud Storage に保存されたログファイルのオブジェクト (例: `gs://swarm-test-bucket/test.log`)
-- ログ投入先の BigQuery データセット (例: `my_dataset`)
-- Cloud Storageのオブジェクトの読み込み権限、およびBigQueryへのデータ投入権限を持ったアカウント
-    1. [gcloud](https://cloud.google.com/sdk/gcloud)コマンドにより権限のあるユーザが認証している
-    2. Service Accountおよびそのキーファイルを作成し、環境変数 `GOOGLE_APPLICATION_CREDENTIALS` にそのファイルパスを設定する
+- Google Cloud project (e.g., `my-project`)
+- Objects of log files stored in Cloud Storage (e.g., `gs://swarm-test-bucket/test.log`)
+  - You can use [sample log files](./examples/readme/data/test.log)
+- Target dataset for log insertion in BigQuery (e.g., `my_dataset`)
+- Account with permission to read objects from Cloud Storage and ingest data into BigQuery
+    1. Authenticate a user with the required permissions using the [gcloud](https://cloud.google.com/sdk/gcloud) command
+    2. Create a Service Account and its key file, then set the path to that file in the environment variable `GOOGLE_APPLICATION_CREDENTIALS`
 
 ### Installation
 
@@ -34,10 +35,10 @@ go install github.com/m-mizutani/swarm@latest
 
 ### Create rule files
 
-`swarm` は[Rego](https://www.openpolicyagent.org/docs/latest/policy-language/)言語を使用してルールを記述することができます。最低限、 "Event rule" と "Schema rule" を記述する必要があります。詳しくは[Rule](./docs/rule.md)を参照してください。まずは以下のようなファイルを作成してください。
+`swarm` allows you to write rules using the [Rego](https://www.openpolicyagent.org/docs/latest/policy-language/) language. At a minimum, you need to write "Event rule" and "Schema rule". For more details, please refer to [Rule](./docs/rule.md). First, create files like the following:
 
 **policy/event.rego**
-このファイルは、Cloud Storage に保存されたオブジェクトを読み取るためのルールを記述します。以下のルールではJSON形式でログが保存されており、`my_schema` という名前のSchema Ruleを使用することが指定されています。
+This file describes the rules for reading objects stored in Cloud Storage. The following rules specify that logs are saved in JSON format and use a Schema Rule named `my_schema`.
 
 ```rego
 package event
@@ -53,7 +54,7 @@ src[s] {
 ```
 
 **policy/schema.rego**
-このファイルはオブジェクトをパースした結果得られたレコードをどのように処理するべきかを記述します。
+This file describes how to process the records obtained by parsing the objects.
 
 ```rego
 package schema.my_log
@@ -72,13 +73,13 @@ log[d] {
 
 ### Execution
 
-ルールの準備ができたら以下のようにコマンドを実行します。
+Once the rules are prepared, execute the command as follows:
 
 ```bash
 swarm exec --bigquery-project-id my-project -p ./policy gs://swarm-test-bucket/test.log | jq
 ```
 
-このコマンドは成功すると以下のようなログを出力します。
+If successful, this command will output logs like the following:
 
 ```json
 {
@@ -111,11 +112,11 @@ swarm exec --bigquery-project-id my-project -p ./policy gs://swarm-test-bucket/t
 }
 ```
 
-実際にBigQueryにデータが投入されたかどうかを確認してみましょう。指定した `my_dataset` に `my_log_table` というテーブルが作成され、データが投入されているはずです。以下のようなスキーマが生成され、
+You can check if the data has been inserted into BigQuery. The specified `my_dataset` should have a table called `my_log_table` created, and the data should have been inserted. The following schema will be generated:
 
 ![](./docs/images/readme/bq_schema.png)
 
-`SELECT * FROM my_dataset.my_log_table` でデータを確認できます。
+You can check the data with `SELECT * FROM my_dataset.my_log_table`:
 
 ![](./docs/images/readme/bq_result.png)
 
