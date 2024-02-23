@@ -81,3 +81,49 @@ func TestCSUrl_Parse(t *testing.T) {
 		})
 	}
 }
+
+func TestNewLogID(t *testing.T) {
+	baseID := NewLogID("bucket1", "object1", 0)
+
+	testCases := map[string]struct {
+		bucket CSBucket
+		objID  CSObjectID
+		idx    int
+		match  bool
+	}{
+		"test case 1": {
+			bucket: "bucket1",
+			objID:  "object1",
+			idx:    0,
+			match:  true,
+		},
+		"test case 2": {
+			bucket: "bucket2",
+			objID:  "object2",
+			idx:    1,
+			match:  false,
+		},
+		"test case 3": {
+			bucket: "bucket1",
+			objID:  "object1",
+			idx:    1,
+			match:  false,
+		},
+		"test case 4": {
+			bucket: "bucket2",
+			objID:  "object1",
+			idx:    0,
+			match:  false,
+		},
+		// Add more test cases as needed
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			result := NewLogID(tc.bucket, tc.objID, tc.idx)
+			if tc.match && result != baseID {
+				t.Errorf("unexpected result")
+			}
+		})
+	}
+}

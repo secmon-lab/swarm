@@ -21,13 +21,14 @@ func New(uc interfaces.UseCase) *Server {
 	route := chi.NewRouter()
 
 	route.Use(Logging)
+	route.Use(Authorization(uc))
+
 	route.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		utils.SafeWrite(w, []byte("OK"))
 	})
 
 	route.Route("/event", func(r chi.Router) {
-		r.Use(Authorization(uc))
 		r.Post("/pubsub", func(w http.ResponseWriter, r *http.Request) {
 			if err := handlePubSubEvent(uc, r); err != nil {
 				utils.HandleError(r.Context(), "failed handle pubsub event", err)
@@ -36,7 +37,7 @@ func New(uc interfaces.UseCase) *Server {
 			}
 
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("Hi!"))
+			utils.SafeWrite(w, []byte("OK"))
 		})
 	})
 

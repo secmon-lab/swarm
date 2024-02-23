@@ -53,8 +53,8 @@ func TestInsert(t *testing.T) {
 
 	client := gt.R1(bq.New(ctx, projectID)).NoError(t)
 
+	var merged bigquery.Schema
 	t.Run("Insert first data", func(t *testing.T) {
-		var merged bigquery.Schema
 		merged = gt.R1(bqs.Merge(merged, gt.R1(bqs.Infer(log1)).NoError(t))).NoError(t)
 		merged = gt.R1(bqs.Merge(merged, gt.R1(bqs.Infer(log2)).NoError(t))).NoError(t)
 
@@ -79,12 +79,18 @@ func TestInsert(t *testing.T) {
 	})
 
 	t.Run("Update schema and insert data", func(t *testing.T) {
+		var md *bigquery.TableMetadata
+		for i := 0; i < 10; i++ {
+			md = gt.R1(
+				client.GetMetadata(ctx, datasetID, tableID),
+			).NoError(t)
 
-		md := gt.R1(
-			client.GetMetadata(ctx, datasetID, tableID),
-		).NoError(t)
+			if bqs.Equal(md.Schema, merged) {
+				break
+			}
+			t.Log("retry to get schema")
+		}
 
-		merged := md.Schema
 		merged = gt.R1(bqs.Merge(merged, gt.R1(bqs.Infer(log3)).NoError(t))).NoError(t)
 
 		updateMD := bigquery.TableMetadataToUpdate{

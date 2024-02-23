@@ -1,6 +1,9 @@
 package types
 
 import (
+	"crypto/md5"
+	"encoding/binary"
+	"encoding/hex"
 	"strings"
 
 	"github.com/google/uuid"
@@ -15,11 +18,22 @@ func (x RequestID) Empty() bool    { return x == "" }
 func (x RequestID) String() string { return string(x) }
 
 // Ingestion metadata
-type StreamID string
+type IngestID string
 type LogID string
 
-func NewStreamID() StreamID { return StreamID(uuid.NewString()) }
-func NewLogID() LogID       { return LogID(uuid.NewString()) }
+func NewIngestID() IngestID { return IngestID(uuid.NewString()) }
+
+func NewLogID(bucket CSBucket, objID CSObjectID, idx int) LogID {
+	h := md5.New()
+	h.Write([]byte(bucket))
+	h.Write([]byte{0x00})
+	h.Write([]byte(objID))
+	bytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(bytes, uint32(idx))
+	h.Write([]byte(bytes))
+
+	return LogID(hex.EncodeToString(h.Sum(nil)))
+}
 
 // Google Cloud Platform
 type GoogleProjectID string

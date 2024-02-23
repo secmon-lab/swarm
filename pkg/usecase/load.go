@@ -58,7 +58,7 @@ func (x *UseCase) LoadData(ctx context.Context, req *model.LoadDataRequest) (e e
 	reqID, ctx := utils.CtxRequestID(ctx)
 	startedAt := time.Now()
 
-	rLog := &model.RequestLog{
+	eventLog := &model.EventLog{
 		ID:         reqID,
 		CSBucket:   req.CSEvent.Bucket,
 		CSObjectID: req.CSEvent.Name,
@@ -67,8 +67,8 @@ func (x *UseCase) LoadData(ctx context.Context, req *model.LoadDataRequest) (e e
 	}
 
 	if x.metadata != nil {
-		schema, err := bqs.Infer(&model.RequestLog{
-			Streams: []*model.StreamLog{{}},
+		schema, err := bqs.Infer(&model.EventLog{
+			Ingests: []*model.IngestLog{{}},
 		})
 		if err != nil {
 			return goerr.Wrap(err, "failed to infer schema").With("req", req)
@@ -81,112 +81,127 @@ func (x *UseCase) LoadData(ctx context.Context, req *model.LoadDataRequest) (e e
 		}
 
 		defer func() {
-			rLog.FinishedAt = time.Now()
-			if err := x.clients.BigQuery().Insert(ctx, x.metadata.Dataset(), x.metadata.Table(), schema, []any{rLog.Raw()}); err != nil {
+			eventLog.FinishedAt = time.Now()
+			if err := x.clients.BigQuery().Insert(ctx, x.metadata.Dataset(), x.metadata.Table(), schema, []any{eventLog.Raw()}); err != nil {
 				utils.HandleError(ctx, "failed to insert request log", err)
 				e = err
 			}
 		}()
 	}
 
-	sLogs, err := x.handleRequest(ctx, req)
-	rLog.Streams = sLogs
-	rLog.Success = err == nil
+	sLogs, err := x.handleEvent(ctx, req)
+	eventLog.Ingests = sLogs
+	eventLog.Success = err == nil
 	if err != nil {
-		rLog.Error = err.Error()
+		eventLog.Error = err.Error()
 		return goerr.Wrap(err, "failed to handle request").With("req", req)
 	}
 
 	return nil
 }
 
-func (x *UseCase) handleRequest(ctx context.Context, req *model.LoadDataRequest) ([]*model.StreamLog, error) {
+func (x *UseCase) handleEvent(ctx context.Context, req *model.LoadDataRequest) ([]*model.IngestLog, error) {
 	if req.CSEvent == nil {
 		return nil, goerr.Wrap(types.ErrAssertion, "CSEvent is nil").With("req", req)
 	}
 
-	var pipeline model.PipelinePolicyOutput
-	if err := x.clients.Policy().Query(ctx, "data.pipeline", req.CSEvent, &pipeline); err != nil {
+	var event model.EventPolicyOutput
+	if err := x.clients.Policy().Query(ctx, "data.event", req.CSEvent, &event); err != nil {
 		return nil, err
 	}
-	if len(pipeline.Streams) == 0 {
-		return nil, goerr.Wrap(types.ErrNoPolicyResult, "no stream in pipeline").With("req", req)
+	if len(event.Sources) == 0 {
+		return nil, goerr.Wrap(types.ErrNoPolicyResult, "no source in event").With("req", req)
 	}
 
 	var errors *multierror.Error
-	streamLogs := make([]*model.StreamLog, len(pipeline.Streams))
+	var ingestLogs []*model.IngestLog
 
-	for i, s := range pipeline.Streams {
-		log, err := x.handleStream(ctx, req, s)
+	for _, s := range event.Sources {
+		logs, err := x.handleSource(ctx, req, s)
 		if err != nil {
 			utils.HandleError(ctx, "failed to handle stream", err)
-			log.Error = err.Error()
 			errors = multierror.Append(errors, err)
 		}
-		streamLogs[i] = log
+		ingestLogs = append(ingestLogs, logs...)
 	}
 
-	return streamLogs, errors.ErrorOrNil()
+	return ingestLogs, errors.ErrorOrNil()
 }
 
-func (x *UseCase) handleStream(ctx context.Context, req *model.LoadDataRequest, s model.Stream) (*model.StreamLog, error) {
-	streamID, ctx := utils.CtxStreamID(ctx)
-	sLog := &model.StreamLog{
-		ID:           streamID,
-		StartedAt:    time.Now(),
-		ObjectSchema: s.Schema,
-		DatasetID:    s.Dataset,
-		TableID:      s.Table,
-	}
-
-	defer func() {
-		sLog.FinishedAt = time.Now()
-	}()
-
+func (x *UseCase) handleSource(ctx context.Context, req *model.LoadDataRequest, s *model.Source) ([]*model.IngestLog, error) {
 	if err := s.Validate(); err != nil {
-		return sLog, err
+		return nil, err
 	}
 
-	records, err := downloadCloudStorageObject(ctx,
+	rawRecords, err := downloadCloudStorageObject(ctx,
 		x.clients.CloudStorage(),
 		req.CSEvent.Bucket,
 		req.CSEvent.Name,
 		s,
 	)
 	if err != nil {
-		return sLog, err
+		return nil, err
 	}
 
-	logs, err := parseRecords(ctx, records, x.clients.Policy(), s.Schema)
+	logs, err := parseRawRecords(ctx, rawRecords, x.clients.Policy(), s.Schema)
 	if err != nil {
-		return sLog, err
+		return nil, err
 	}
 
-	logRecords := make([]*model.LogRecord, len(logs))
-	for i, log := range logs {
+	dstMap := map[model.BigQueryDest][]*model.LogRecord{}
+	for idx, log := range logs {
 		if err := log.Validate(); err != nil {
-			return sLog, err
+			return nil, err
 		}
 		if log.ID == "" {
-			log.ID = types.NewLogID()
+			log.ID = types.NewLogID(req.CSEvent.Bucket, req.CSEvent.Name, idx)
 		}
 
-		nanoSec := math.Mod(log.Timestamp, 1.0) * 1000 * 1000 * 1000
-
-		logRecords[i] = &model.LogRecord{
+		tsNano := math.Mod(log.Timestamp, 1.0) * 1000 * 1000 * 1000
+		dstMap[log.BigQueryDest] = append(dstMap[log.BigQueryDest], &model.LogRecord{
 			ID:         log.ID,
-			StreamID:   streamID,
-			Timestamp:  time.Unix(int64(log.Timestamp), int64(nanoSec)),
+			Timestamp:  time.Unix(int64(log.Timestamp), int64(tsNano)),
 			InsertedAt: time.Now(),
 
 			// If there is a field that has nil value in the log.Data, the field can not be estimated field type by bqs.Infer. It will cause an error when inserting data to BigQuery. So, remove nil value from log.Data.
 			Data: cloneWithoutNil(log.Data),
+		})
+	}
+
+	var ingestLogs []*model.IngestLog
+	for dst, records := range dstMap {
+		log, err := x.ingestRecords(ctx, dst, records)
+
+		log.DatasetID = dst.Dataset
+		log.TableID = dst.Table
+		log.ObjectSchema = s.Schema
+		ingestLogs = append(ingestLogs, log)
+		if err != nil {
+			return ingestLogs, err
 		}
 	}
 
-	schema, err := inferSchema(logRecords)
+	return ingestLogs, nil
+}
+
+func (x *UseCase) ingestRecords(ctx context.Context, bqDst model.BigQueryDest, records []*model.LogRecord) (*model.IngestLog, error) {
+	ingestID, ctx := utils.CtxIngestID(ctx)
+
+	result := &model.IngestLog{
+		ID:        ingestID,
+		StartedAt: time.Now(),
+		DatasetID: bqDst.Dataset,
+		TableID:   bqDst.Table,
+		LogCount:  len(records),
+	}
+
+	defer func() {
+		result.FinishedAt = time.Now()
+	}()
+
+	schema, err := inferSchema(records)
 	if err != nil {
-		return sLog, err
+		return result, err
 	}
 
 	md := &bigquery.TableMetadata{
@@ -197,30 +212,30 @@ func (x *UseCase) handleStream(ctx context.Context, req *model.LoadDataRequest, 
 		},
 	}
 
-	finalized, err := x.CreateOrUpdateTable(ctx, s.Dataset, s.Table, md)
+	finalized, err := x.CreateOrUpdateTable(ctx, bqDst.Dataset, bqDst.Table, md)
 	if err != nil {
-		return sLog, goerr.Wrap(err, "failed to update schema").With("dataset", s.Dataset).With("table", s.Table)
+		return result, goerr.Wrap(err, "failed to update schema").With("dst", bqDst)
 	}
 	jsonSchema, err := schema.ToJSONFields()
 	if err != nil {
-		return sLog, goerr.Wrap(err, "failed to convert schema to JSON").With("schema", schema)
+		return result, goerr.Wrap(err, "failed to convert schema to JSON").With("schema", schema)
 	}
-	sLog.TableSchema = string(jsonSchema)
+	result.TableSchema = string(jsonSchema)
 
-	data := make([]any, len(logRecords))
-	for i := range logRecords {
-		data[i] = logRecords[i].Raw()
-	}
-
-	if err := x.clients.BigQuery().Insert(ctx, s.Dataset, s.Table, finalized, data); err != nil {
-		return sLog, goerr.Wrap(err, "failed to insert data").With("dataset", s.Dataset).With("table", s.Table)
+	data := make([]any, len(records))
+	for i := range records {
+		data[i] = records[i].Raw()
 	}
 
-	sLog.Success = true
-	return sLog, nil
+	if err := x.clients.BigQuery().Insert(ctx, bqDst.Dataset, bqDst.Table, finalized, data); err != nil {
+		return result, goerr.Wrap(err, "failed to insert data").With("dst", bqDst)
+	}
+
+	result.Success = true
+	return result, nil
 }
 
-func downloadCloudStorageObject(ctx context.Context, csClient interfaces.CloudStorage, bucket types.CSBucket, objID types.CSObjectID, s model.Stream) ([]any, error) {
+func downloadCloudStorageObject(ctx context.Context, csClient interfaces.CloudStorage, bucket types.CSBucket, objID types.CSObjectID, s *model.Source) ([]any, error) {
 	var records []any
 	reader, err := csClient.Open(ctx, bucket, objID)
 	if err != nil {
@@ -250,9 +265,9 @@ func downloadCloudStorageObject(ctx context.Context, csClient interfaces.CloudSt
 	return records, nil
 }
 
-func parseRecords(ctx context.Context, record []any, p *policy.Client, schema types.ObjectSchema) ([]*model.LogOutput, error) {
-	logs := make([]*model.LogOutput, 0, len(record))
-	for _, r := range record {
+func parseRawRecords(ctx context.Context, rawLogs []any, p *policy.Client, schema types.ObjectSchema) ([]*model.Log, error) {
+	logs := make([]*model.Log, 0, len(rawLogs))
+	for _, r := range rawLogs {
 		var output model.SchemaPolicyOutput
 		if err := p.Query(ctx, schema.Query(), r, &output); err != nil {
 			return nil, err

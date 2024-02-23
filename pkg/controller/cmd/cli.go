@@ -35,6 +35,7 @@ func Run(argv []string) error {
 			execCommand(&rt),
 			serveCommand(&rt),
 			retryCommand(&rt),
+			clientCommand(&rt),
 		},
 	}
 

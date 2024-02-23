@@ -18,61 +18,65 @@ type AuthPolicyOutput struct {
 	Deny bool `json:"deny"`
 }
 
-type Stream struct {
+type EventPolicyOutput struct {
+	Sources []*Source `json:"src"`
+}
+
+type Source struct {
 	// Source object information
 	Format types.ObjectFormat `json:"format"`
 	Schema types.ObjectSchema `json:"schema"`
 	Comp   types.ObjectComp   `json:"comp"`
-
-	// Destination BigQuery table information
-	Dataset types.BQDatasetID `json:"dataset"`
-	Table   types.BQTableID   `json:"table"`
 }
 
-func (x Stream) Validate() error {
-	if x.Dataset == "" {
-		return goerr.Wrap(types.ErrInvalidPolicyResult, "stream.dataset is required")
-	}
-	if x.Table == "" {
-		return goerr.Wrap(types.ErrInvalidPolicyResult, "stream.table is required")
-	}
-
+func (x Source) Validate() error {
 	switch x.Format {
 	case types.JSONFormat:
 		// OK
 	default:
-		return goerr.Wrap(types.ErrInvalidPolicyResult, "stream.format is invalid").With("format", x.Format)
+		return goerr.Wrap(types.ErrInvalidPolicyResult, "src.format is invalid").With("format", x.Format)
 	}
 
 	if x.Schema == "" {
-		return goerr.Wrap(types.ErrInvalidPolicyResult, "stream.schema is required")
+		return goerr.Wrap(types.ErrInvalidPolicyResult, "src.record is required")
 	}
 
 	switch x.Comp {
 	case types.GZIPComp, "":
 		// OK
 	default:
-		return goerr.Wrap(types.ErrInvalidPolicyResult, "stream.comp is invalid").With("comp", x.Comp)
+		return goerr.Wrap(types.ErrInvalidPolicyResult, "src.comp is invalid").With("comp", x.Comp)
 	}
 
 	return nil
 }
 
-type PipelinePolicyOutput struct {
-	Streams []Stream `json:"stream"`
-}
-
 type SchemaPolicyOutput struct {
-	Logs []*LogOutput `json:"logs"`
+	Logs []*Log `json:"log"`
 }
 
-type LogOutput struct {
+type BigQueryDest struct {
+	Dataset types.BQDatasetID `json:"dataset"`
+	Table   types.BQTableID   `json:"table"`
+}
+
+type Log struct {
+	// Destination BigQuery table information
+	BigQueryDest
+
 	ID        types.LogID    `json:"id"`
 	Timestamp float64        `json:"timestamp"`
 	Data      map[string]any `json:"data"`
 }
 
-func (x *LogOutput) Validate() error {
+func (x *Log) Validate() error {
+	if x.Dataset == "" {
+		return goerr.Wrap(types.ErrInvalidPolicyResult, "log.dataset is required")
+	}
+	if x.Table == "" {
+		return goerr.Wrap(types.ErrInvalidPolicyResult, "log.table is required")
+	}
+
 	if x.Timestamp == 0 {
 		return goerr.Wrap(types.ErrInvalidPolicyResult, "log.timestamp is required, or must be more than 0")
 	}

@@ -92,7 +92,9 @@ func serveCommand(rt *runtime) *cli.Command {
 			select {
 			case sig := <-sigCh:
 				utils.Logger().Info("received signal and shutting down", "signal", sig)
-				httpServer.Shutdown(c.Context)
+				if err := httpServer.Shutdown(c.Context); err != nil {
+					return goerr.Wrap(err, "failed to shutdown server")
+				}
 
 			case err := <-errCh:
 				return err

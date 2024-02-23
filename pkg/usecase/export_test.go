@@ -1,3 +1,5 @@
 package usecase
 
-var CloneWithoutNil = cloneWithoutNil
+var (
+	CloneWithoutNil = cloneWithoutNil
+)

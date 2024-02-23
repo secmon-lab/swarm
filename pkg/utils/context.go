@@ -19,16 +19,16 @@ func CtxRequestID(ctx context.Context) (types.RequestID, context.Context) {
 	return newID, context.WithValue(ctx, ctxRequestIDKey{}, newID)
 }
 
-type ctxStreamIDKey struct{}
+type ctxIngestIDKey struct{}
 
-// CtxStreamID returns stream ID from context. If stream ID is not set, return new stream ID and context with it
-func CtxStreamID(ctx context.Context) (types.StreamID, context.Context) {
-	if id, ok := ctx.Value(ctxStreamIDKey{}).(types.StreamID); ok {
+// CtxIngestID returns stream ID from context. If stream ID is not set, return new stream ID and context with it
+func CtxIngestID(ctx context.Context) (types.IngestID, context.Context) {
+	if id, ok := ctx.Value(ctxIngestIDKey{}).(types.IngestID); ok {
 		return id, ctx
 	}
 
-	newID := types.NewStreamID()
-	return newID, context.WithValue(ctx, ctxStreamIDKey{}, newID)
+	newID := types.NewIngestID()
+	return newID, context.WithValue(ctx, ctxIngestIDKey{}, newID)
 }
 
 type ctxLoggerKey struct{}

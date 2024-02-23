@@ -6,61 +6,60 @@ import (
 	"github.com/m-mizutani/swarm/pkg/domain/types"
 )
 
-type RequestLog struct {
+type EventLog struct {
 	ID         types.RequestID
 	CSBucket   types.CSBucket
 	CSObjectID types.CSObjectID
 	StartedAt  time.Time
 	FinishedAt time.Time
 	Success    bool
-	Streams    []*StreamLog
+	Ingests    []*IngestLog
 	Error      string
 }
 
-type StreamLog struct {
-	ID           types.StreamID
+type IngestLog struct {
+	ID           types.IngestID
 	StartedAt    time.Time
 	FinishedAt   time.Time
 	ObjectSchema types.ObjectSchema
-	TableSchema  string
 	DatasetID    types.BQDatasetID
 	TableID      types.BQTableID
+	TableSchema  string
 	LogCount     int
 	Success      bool
-	Error        string
 }
 
-type RequestLogRaw struct {
-	RequestLog
+type EventLogRaw struct {
+	EventLog
 	StartedAt  int64
 	FinishedAt int64
-	Streams    []*StreamLogRaw
+	Ingests    []*IngestLogRaw
 }
 
-type StreamLogRaw struct {
-	StreamLog
+type IngestLogRaw struct {
+	IngestLog
 	StartedAt  int64
 	FinishedAt int64
 }
 
-func (x *RequestLog) Raw() *RequestLogRaw {
-	resp := &RequestLogRaw{
-		RequestLog: *x,
+func (x *EventLog) Raw() *EventLogRaw {
+	resp := &EventLogRaw{
+		EventLog:   *x,
 		StartedAt:  x.StartedAt.UnixMicro(),
 		FinishedAt: x.FinishedAt.UnixMicro(),
-		Streams:    make([]*StreamLogRaw, len(x.Streams)),
+		Ingests:    make([]*IngestLogRaw, len(x.Ingests)),
 	}
 
-	for i, stream := range x.Streams {
-		resp.Streams[i] = stream.Raw()
+	for i, route := range x.Ingests {
+		resp.Ingests[i] = route.Raw()
 	}
 
 	return resp
 }
 
-func (x *StreamLog) Raw() *StreamLogRaw {
-	return &StreamLogRaw{
-		StreamLog:  *x,
+func (x *IngestLog) Raw() *IngestLogRaw {
+	return &IngestLogRaw{
+		IngestLog:  *x,
 		StartedAt:  x.StartedAt.UnixMicro(),
 		FinishedAt: x.FinishedAt.UnixMicro(),
 	}
@@ -69,7 +68,7 @@ func (x *StreamLog) Raw() *StreamLogRaw {
 type LogRecord struct {
 	// NOTICE: Must update LogRecordRaw also when adding new fields to LogRecord
 	ID         types.LogID
-	StreamID   types.StreamID
+	IngestID   types.IngestID
 	Timestamp  time.Time
 	InsertedAt time.Time
 	Data       any

@@ -6,8 +6,10 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigquery"
+	"cloud.google.com/go/bigquery/storage/apiv1/storagepb"
 	mw "cloud.google.com/go/bigquery/storage/managedwriter"
 	"cloud.google.com/go/bigquery/storage/managedwriter/adapt"
+	"github.com/googleapis/gax-go/v2/apierror"
 	"github.com/m-mizutani/goerr"
 	"github.com/m-mizutani/swarm/pkg/domain/interfaces"
 	"github.com/m-mizutani/swarm/pkg/domain/types"
@@ -100,7 +102,7 @@ func (x *Client) Insert(ctx context.Context, datasetID types.BQDatasetID, tableI
 }
 */
 
-func backoff(callback func(n int) (done bool, err error)) error {
+func backoff(ctx context.Context, callback func(n int) (done bool, err error)) error {
 	// Retry with exponential backoff
 	backoff := 10 * time.Millisecond
 	waitMax := 30 * time.Second
@@ -118,7 +120,12 @@ func backoff(callback func(n int) (done bool, err error)) error {
 		} else if backoff > waitMax {
 			backoff = waitMax
 		}
-		time.Sleep(backoff)
+
+		select {
+		case <-ctx.Done():
+			return goerr.Wrap(ctx.Err(), "context is canceled")
+		case <-time.After(backoff):
+		}
 	}
 }
 
@@ -151,7 +158,6 @@ func (x *Client) Insert(ctx context.Context, datasetID types.BQDatasetID, tableI
 			return goerr.Wrap(err, "failed to Marshal json message")
 		}
 
-		println("json >>", string(raw))
 		// First, json->proto message
 		err = protojson.Unmarshal(raw, message)
 		if err != nil {
@@ -166,7 +172,12 @@ func (x *Client) Insert(ctx context.Context, datasetID types.BQDatasetID, tableI
 		rows = append(rows, b)
 	}
 
-	if err := backoff(func(c int) (bool, error) {
+	// After updating BigQuery schema, there is a delay for propagation of the schema change. According to the following document, it takes about 10 minutes.
+	// https://issuetracker.google.com/issues/64329577#comment3
+	// Then, we wait for 15 minutes to avoid the schema propagation delay.
+	ctx, cancel := context.WithTimeout(ctx, 15*time.Minute)
+	defer cancel()
+	if err := backoff(ctx, func(c int) (bool, error) {
 		ms, err := x.mwClient.NewManagedStream(ctx,
 			mw.WithDestinationTable(
 				mw.TableParentFromParts(
@@ -175,7 +186,7 @@ func (x *Client) Insert(ctx context.Context, datasetID types.BQDatasetID, tableI
 					tableID.String(),
 				),
 			),
-			mw.WithType(mw.CommittedStream),
+			// mw.WithType(mw.CommittedStream),
 			mw.WithSchemaDescriptor(descriptorProto),
 		)
 		if err != nil {
@@ -183,22 +194,40 @@ func (x *Client) Insert(ctx context.Context, datasetID types.BQDatasetID, tableI
 		}
 		defer utils.SafeClose(ms)
 
-		if _, err := ms.AppendRows(ctx, rows); err != nil {
+		arResult, err := ms.AppendRows(ctx, rows)
+		if err != nil {
 			return true, goerr.Wrap(err, "failed to append rows")
 		}
 
-		n, err := ms.Finalize(ctx)
-		if err != nil {
-			return true, goerr.Wrap(err, "failed to finalize stream")
-		}
-		if n > 0 {
-			if n != int64(len(rows)) {
-				utils.CtxLogger(ctx).Warn("failed to finalize all rows", "n", n, "rows", len(rows))
+		if _, err := arResult.FullResponse(ctx); err != nil {
+			if apiErr, ok := apierror.FromError(err); ok {
+				storageErr := &storagepb.StorageError{}
+				if e := apiErr.Details().ExtractProtoMessage(storageErr); e == nil && storageErr.Code == storagepb.StorageError_SCHEMA_MISMATCH_EXTRA_FIELDS {
+					utils.CtxLogger(ctx).Debug("retrying to append rows")
+					return false, nil
+				}
 			}
-			return true, nil
+			return true, goerr.Wrap(err, "failed to get append result")
 		}
 
-		return c > 30, nil
+		/*
+			if _, err := ms.AppendRows(ctx, rows); err != nil {
+				return true, goerr.Wrap(err, "failed to append rows")
+			}
+
+			n, err := ms.Finalize(ctx)
+			if err != nil {
+				return true, goerr.Wrap(err, "failed to finalize stream")
+			}
+			if n > 0 {
+				if n != int64(len(rows)) {
+					utils.CtxLogger(ctx).Warn("failed to finalize all rows", "n", n, "rows", len(rows))
+				}
+				return true, nil
+			}
+			utils.CtxLogger(ctx).Debug("failed to finalize all rows, retrying...", "n", n, "rows", len(rows))
+		*/
+		return true, nil
 	}); err != nil {
 		return err
 	}
