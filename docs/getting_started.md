@@ -7,7 +7,7 @@ First, let's try running it from the local environment. For actual deployment, p
 - Go 1.22 or later
 - Google Cloud project (e.g., `my-project`)
 - Objects of log files stored in Cloud Storage (e.g., `gs://swarm-test-bucket/test.log`)
-  - You can use [sample log files](./examples/readme/data/test.log)
+  - You can use [sample log files](../examples/readme/data/test.log)
 - Target dataset for log insertion in BigQuery (e.g., `my_dataset`)
 - Account with permission to read objects from Cloud Storage and ingest data into BigQuery
     1. Authenticate a user with the required permissions using the [gcloud](https://cloud.google.com/sdk/gcloud) command
