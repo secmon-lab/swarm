@@ -1,16 +1,22 @@
 # Rule
 
-swarmは、Rego言語を使用してルールを記述することができます。ルールは、データのスキーマ、イベント、認可に関するものです。
+With Swarm, you can describe rules using the Rego language. These rules pertain to data schema, events, and authorization.
 
-- データの処理に関するルール
-  - [Event Rule](#event-rule): オブジェクト作成などのイベントが発生した際に、そのオブジェクトをどのように取り込むかを定義をするルールです。
-  - [Schema Rule](#schema-rule): オブジェクトから読み込まれたデータを変換したり、投入先を指定したり、必要なパラメータを抽出するためのルールです。
-- その他のルール
-  - [Authorization Rule](#authorization-rule): HTTPリクエストに対する認可を行うためのルールです。
+- Rules related to data processing
+  - [Event Rule](#event-rule): Defines how to capture an object when an event, such as object creation, occurs.
+  - [Schema Rule](#schema-rule): Defines how to transform data retrieved from objects, specify the destination, and extract necessary parameters.
+- Other rules
+  - [Authorization Rule](#authorization-rule): Rules for authorizing HTTP requests.
+
+This document explains how to write each type of rule.
+
+- `Input`: Describes the schema of the `input` provided for Rego evaluation.
+- `Output`: Explains the variables used to store the results of Rego evaluations.
+- `Example`: Demonstrates the types of rules that can be described.
 
 ## Event Rule
 
-オブジェクトの生成などのイベントが発生した際に、そのオブジェクトを取得する方法を定義するルールです。パッケージ名は `event` になります。
+This rule defines how to capture an object when events, such as object creation, occur. The package name is `event`.
 
 ```rego
 package event
@@ -20,7 +26,7 @@ package event
 
 ### Input
 
-swarmが通知イベントとして取得したデータがそのまま `input` に渡されます。例えばCloud Storageでオブジェクトを作成した場合には、以下のようなデータが渡されます。
+The data obtained by Swarm as a notification event is passed as the `input` for evaluation in Rego. For example, when an object is created in Cloud Storage, the following data is passed:
 
 ```json
 {
@@ -46,16 +52,16 @@ swarmが通知イベントとして取得したデータがそのまま `input` 
 
 ### Output
 
-Regoの評価結果は `src` というセットを作成します。このセットには以下のスキーマのオブジェクトを格納します。
+The result of Rego evaluation creates a set called `src`. This set contains objects with the following schema:
 
-- `parser`: (Required, `"json"`) オブジェクトをパースするための種別を指定します。現状は `json` のみサポートされています。
-- `schema`: (Required, `string`) パースしたデータを処理するためのスキーマを指定します。ここで指定された名前が、Schema Rule の評価に利用されます。
-- `compress`: (Optional, `string`) オブジェクトが圧縮されている場合に、その種別を指定します。現状は `gzip` のみサポートされています。
-  - 注意：Cloud Storageで `contentEncoding` に `gzip` が指定されている場合はオブジェクトの取得過程で自動的に解凍されるため、このパラメータは不要です。
+- `parser`: (Required, `"json"`) Specifies the type of parser for parsing the object. Currently, only `json` is supported.
+- `schema`: (Required, `string`) Specifies the schema for processing the parsed data. The name specified here is used for evaluating Schema Rules.
+- `compress`: (Optional, `string`) Specifies the compression type if the object is compressed. Currently, only `gzip` is supported.
+  - Note: If `contentEncoding` is specified as `gzip` in Cloud Storage, the object is automatically decompressed during retrieval, so this parameter is not necessary.
 
 ### Example
 
-例えば下記のようなルールを記述できます。このルールは、`mztn-sample-bucket` バケットにある `mydir` というディレクトリにある `.log.gz` と `.log` ファイルを取り込むためのルールです。
+You can describe rules such as the following. These rules define how to capture `.log.gz` and `.log` files in the `mydir` directory within the `mztn-sample-bucket` bucket.
 
 ```rego
 package event
@@ -86,13 +92,13 @@ src[s] {
 }
 ```
 
-Rule1はgzip形式で圧縮してあるログファイルを取り込むためのルールで、ファイルのsuffixが `.log.gz` であることを条件にしています。一方、Rule2はgzip形式で圧縮していないログファイルを取り込むためのルールで、ファイルのsuffixが `.log` であることを条件にしています。このように同じバケットに異なる形式のファイルがあっても、それぞれ異なる方法でファイルを取り込むルールを記述することができます。
+Rule1 is a rule for capturing compressed log files in gzip format, based on the condition that the file suffix is `.log.gz`. On the other hand, Rule2 is a rule for capturing uncompressed log files, based on the condition that the file suffix is `.log`. This allows you to write rules for capturing files in different formats within the same bucket.
 
-各オブジェクトは、`parser` で指定された通り（この例では `json`）にパースされ、その結果は `schema` で指定された Schema Rule に従って処理されます。この例では、`access_log` という名前のスキーマが定義されていることを前提にしています。
+Each object is parsed according to the specified `parser` (in this example, `json`), and the result is processed according to the Schema Rule specified by `schema`. This example assumes the existence of a schema named `access_log`.
 
 ## Schema Rule
 
-オブジェクトから読み込まれた各レコードに対して、どのように処理するかを定義するルールです。パッケージ名は `schema.{name}`  になります。`{name}` はスキーマ名で、任意の名前を指定できます。ただしRegoのパッケージ名の制約に従う必要があり、英数字とアンダースコアのみになります（詳しくは[Grammar](https://www.openpolicyagent.org/docs/latest/policy-reference/#grammar)を参照）。このスキーマ名は Event Rule で指定された `schema` と一致する必要があります。
+This rule defines how to process each record retrieved from objects. The package name is `schema.{name}`, where `{name}` is the schema name. It must comply with the constraints of Rego package names, containing only alphanumeric characters and underscores (see [Grammar](https://www.openpolicyagent.org/docs/latest/policy-reference/#grammar) for details). This schema name must match the `schema` specified in the Event Rule.
 
 ```rego
 package schema.access_log
@@ -102,9 +108,9 @@ package schema.access_log
 
 ### Input
 
-Rego評価のための `input` は、Event Rule で指定された `parser` でパースされた結果のレコードになります。これはログ毎に全く異なるものとなります。
+The `input` for Rego evaluation is the record resulting from parsing with the `parser` specified in the Event Rule. This will be different for each log.
 
-今回は参考として、以下のようなデータを想定します。
+As a reference, let's consider the following data:
 
 ```json
 {
@@ -119,17 +125,18 @@ Rego評価のための `input` は、Event Rule で指定された `parser` で�
 
 ### Output
 
-Regoの評価結果は `log` というセットを作成します。このセットには以下のスキーマのオブジェクトを格納します。
+The result of Rego evaluation creates a set called `log`. This set contains objects with the following schema:
 
-- `dataset`: (Required, `string`) ログを投入するBigQueryのデータセット名を指定します。データセットは事前に作成されている必要があります。
-- `table`: (Required, `string`) ログを投入するBigQueryのテーブル名を指定します。テーブルは存在しない場合、自動的に作成されます。
-- `id`: (Optional, `string`) そのログの一意性を保証するためのIDを指定します。もし元のログにそのようなフィールドが存在している場合は、その値を指定することができます。指定しない場合は、バケット名、オブジェクト名、およびSchema Ruleによって生成されたログ(`log`に格納されたオブジェクト)の順序番号が組み合わされたものをハッシュした値が自動的に生成されます。
-- `timestamp`: (Required, `float64`) ログのタイムスタンプをUnix Timestamp形式で指定します。この値は `event_time` などのフィールドから取得することができます。
-- `data`: (Required, `object`) ログのデータを指定します。通常は `input` をそのまま指定します。もし元データの値を変更したり、特定のフィールドを削除したい場合は、そのような変更を加えたオブジェクトを指定することができます。
+- `dataset`: (Required, `string`) Specifies the BigQuery dataset name to ingest the log. The dataset must be created in advance.
+- `table`: (Required, `string`) Specifies the name of the BigQuery table to ingest the log. If the table does not exist, it will be created automatically.
+- `partition`: (Optional, `"hour" | "day" | "month" | "year"`) Specifies the granularity for [Time-unit column partitioning](https://cloud.google.com/bigquery/docs/partitioned-tables#date_timestamp_partitioned_tables) for the `Timestamp` field containing the log timestamp. An empty string indicates no Time-unit column partitioning. A finer granularity improves search efficiency but be mindful of the [constraints](https://cloud.google.com/bigquery/quotas#partitioned_tables) and costs. Refer to [this link](https://cloud.google.com/bigquery/docs/partitioned-tables) for more details.
+- `id`: (Optional, `string`) Specifies an ID to ensure the uniqueness of the log. If such a field exists in the original log, its value can be specified. If not, a hash of the combination of the bucket name, object name, and the ordinal number of the log (contained in the object stored in `log`) will be automatically generated.
+- `timestamp`: (Required, `float64`) Specifies the log timestamp in Unix Timestamp format. This value can be obtained from fields such as `event_time`.
+- `data`: (Required, `object`) Specifies the log data. Normally, this will be the `input` as it is. If you want to modify the values of the original data or remove specific fields, you can specify an object with those changes.
 
 ### Example
 
-例えば下記のようなルールを記述できます。このルールは、`access_log` という名前のスキーマを定義しています。
+You can describe rules such as the following. This rule defines a schema named `access_log`.
 
 ```rego
 package schema.access_log
@@ -147,7 +154,7 @@ log[d] {
 
 ## Authorization Rule
 
-HTTPリクエストに対する認可を行うためのルールです。パッケージ名は `auth` になります。
+This rule is for authorizing HTTP requests. The package name is `auth`.
 
 ```rego
 package auth
@@ -155,7 +162,94 @@ package auth
 ...
 ```
 
-このルールは `/health` へのアクセスを除く、全てのリクエストを許可するルールです。
+This rule allows all requests except for access to `/health`.
 
 ### Input
 
+- `method` (string): Contains the HTTP method, such as `GET` or `POST`.
+- `path` (string): Contains the HTTP request path starting from `/`.
+- `remote` (string): Contains the IP address of the remote connection. This value represents the remote address in TCP/IP, and keep in mind that it may differ from the actual public IP address of the connecting device when going through load balancers, etc.
+- `query` (object of array of string): Contains the query parameters.
+- `header` (object of array of string): Contains the HTTP headers.
+- `body` (string): Contains the body of the HTTP request.
+
+Specifically, data will be in the following format:
+
+```json
+{
+    "method": "POST",
+    "path": "/v1/objects/search",
+    "remote": "198.51.100.3",
+    "query": {
+        "limit": ["20"],
+        "offset": ["60"]
+    },
+    "header": {
+        "Authorization": ["Bearer xxxxxxxx"],
+        "Content-Type": ["application/json"]
+    },
+    "body": "{\"query\": \"my object\"}"
+}
+```
+
+### Output
+
+It returns a boolean value called `deny`. Returning `true` denies the request, while returning `false` allows the request. If no rule is defined, it will be `undefined`, which is treated the same as `false`, allowing all requests.
+
+### Example
+
+You can describe rules such as the following. This rule allows all requests except for access to `/health`.
+
+```rego
+package auth
+
+# Deny all requests by default
+default deny = true
+
+# If the variable 'allow' is defined, it returns false, allowing the request
+deny := false { allow }
+
+# Allow all access to specific paths
+allow {
+  input.path == "/event/xxx"
+}
+
+# Allow requests containing specific tokens in the query
+allow {
+  input.query.token[_] == "xxxx"
+}
+
+# Verify the ID token issued by Google Cloud
+jwks_request(url) := http.send({
+    "url": url,
+    "method": "GET",
+    "force_cache": true,
+    "force_cache_duration_seconds": 3600 # Cache response for an hour
+}).raw_body
+
+allow {
+    # Extract token from Authorization header
+    authHdr := input.header["Authorization"]
+    count(authHdr) == 1
+    authHdrValues := split(authHdr[0], " ")
+    count(authHdrValues) == 2
+    lower(authHdrValues[0]) == "bearer"
+    token := authHdrValues[1]
+
+    # Get JWKS of google
+    jwks := jwks_request("https://www.googleapis.com/oauth2/v3/certs")
+
+    # Verify token
+    io.jwt.verify_rs256(token, jwks)
+    claims := io.jwt.decode(token)
+
+    # Allow if the token
+    # - is valid
+    # - the email address is "my-pubsub@my-project.iam.gserviceaccount.com"
+    # - is issued by Google
+    # - is not expired
+    claims[1]["iss"] == "https://accounts.google.com"
+    claims[1]["email"] == "my-pubsub@my-project.iam.gserviceaccount.com"
+    time.now_ns() / (1000 * 1000 * 1000) < claims[1]["exp"]
+}
+```
