@@ -3,10 +3,10 @@ package auth
 default deny = true
 
 deny = false {
-    allow
+	allow
 }
 
 allow {
-    print(input.header)
-    input.header["Authorization"][_] == "Bearer good-token"
+	print(input.header)
+	input.header.Authorization[_] == "Bearer good-token"
 }

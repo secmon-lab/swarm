@@ -34,7 +34,7 @@ src[s] {
   input.bucket == "swarm-test-bucket"
   s := {
     "parser": "json",
-    "schema": "my_schema",
+    "schema": "my_log",
   }
 }
 ```

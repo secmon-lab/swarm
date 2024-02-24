@@ -1,24 +1,20 @@
 package event
 
-src[s] {
-    input.kind == "storage#object"
-    input.bucket == "cloudtrail-logs"
-    endswith(input.name, ".log")
-
-    s := {
-        "schema": "cloudtrail",
-        "parser": "json",
-    }
+src[{
+	"schema": "cloudtrail",
+	"parser": "json",
+}] {
+	input.kind == "storage#object"
+	input.bucket == "cloudtrail-logs"
+	endswith(input.name, ".log")
 }
 
-src[s] {
-    input.kind == "storage#object"
-    input.bucket == "cloudtrail-logs"
-    endswith(input.name, ".gz")
-
-    s := {
-        "schema": "cloudtrail",
-        "parser": "json",
-        "compress": "gzip",
-    }
+src[{
+	"schema": "cloudtrail",
+	"parser": "json",
+	"compress": "gzip",
+}] {
+	input.kind == "storage#object"
+	input.bucket == "cloudtrail-logs"
+	endswith(input.name, ".gz")
 }
