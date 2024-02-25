@@ -13,7 +13,7 @@ A tool to ingest log data with a dynamic schema from Google Cloud Storage into B
 
 ## Rule Examples
 
-In Swarm, rules for saving objects stored in Cloud Storage to BigQuery are described using the Rego language. The rules are divided into two types: Event rules, which are executed when receiving the object storage event, and Schema rules, which define the format and destination of the log data to be saved in BigQuery.
+In Swarm, rules for saving objects stored in Cloud Storage to BigQuery are described using the Rego language. The rules are divided into two types: **Event rules**, which are executed when receiving the object storage event, and **Schema rules**, which define the format and destination of the log data to be saved in BigQuery.
 
 For detailed description, please refer to the [Rule document](./docs/rule.md).
 
@@ -32,7 +32,7 @@ src[s] {
 	s := {
 		"parser": "json",
 		"schema": "github_audit",
-        "compress": "gzip",
+		"compress": "gzip",
 	}
 }
 ```
