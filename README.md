@@ -26,8 +26,8 @@ package event
 
 src[s] {
 	input.bucket == "swarm-test-bucket"
-    starts_with(input.name, "logs/")
-    ends_with(input.name, ".log.gz")
+	starts_with(input.name, "logs/")
+	ends_with(input.name, ".log.gz")
 
 	s := {
 		"parser": "json",
