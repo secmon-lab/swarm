@@ -1,4 +1,4 @@
-# swarm
+# swarm [![trivy](https://github.com/m-mizutani/swarm/actions/workflows/trivy.yml/badge.svg)](https://github.com/m-mizutani/swarm/actions/workflows/trivy.yml) [![test](https://github.com/m-mizutani/swarm/actions/workflows/test.yml/badge.svg)](https://github.com/m-mizutani/swarm/actions/workflows/test.yml) [![lint](https://github.com/m-mizutani/swarm/actions/workflows/lint.yml/badge.svg)](https://github.com/m-mizutani/swarm/actions/workflows/lint.yml) [![gosec](https://github.com/m-mizutani/swarm/actions/workflows/gosec.yml/badge.svg)](https://github.com/m-mizutani/swarm/actions/workflows/gosec.yml)
 
 A tool to ingest log data with a dynamic schema from Google Cloud Storage into BigQuery.
 
