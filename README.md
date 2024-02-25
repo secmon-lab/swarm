@@ -17,6 +17,7 @@ A tool to ingest log data with a dynamic schema from Google Cloud Storage into B
 Please refer to the following documents for more details
 
 - [Getting Started](./docs/getting_started.md): How to install and execute `swarm` in local as trial.
+- [Specification](./docs/specification.md): The specification of the tool.
 - [Deployment](./docs/deployment.md): How to deploy the tool into Google Cloud Platform.
 - [Rule](./docs/rule.md): How to write Rego rules for the tool.
 - [Comparisons](./docs/comparisons.md): Comparisons with other tools and services.
