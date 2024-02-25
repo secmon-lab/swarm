@@ -8,7 +8,6 @@ import (
 	"cloud.google.com/go/bigquery"
 	"github.com/m-mizutani/gt"
 	"github.com/m-mizutani/swarm/pkg/domain/types"
-	"github.com/m-mizutani/swarm/pkg/infra"
 	"github.com/m-mizutani/swarm/pkg/infra/bq"
 	"github.com/m-mizutani/swarm/pkg/usecase"
 	"github.com/m-mizutani/swarm/pkg/utils"
@@ -21,12 +20,11 @@ func TestCreateOrUpdateTable(t *testing.T) {
 	ctx := context.Background()
 	bqClient := gt.R1(bq.New(ctx, bqProject)).NoError(t)
 
-	uc := usecase.New(infra.New(infra.WithBigQuery(bqClient)))
-
 	tableID := time.Now().Format("create_test_20060102_150405")
 
 	// Create table
-	gt.R1(uc.CreateOrUpdateTable(ctx,
+	gt.R1(usecase.CreateOrUpdateTable(ctx,
+		bqClient,
 		types.BQDatasetID(bqDataset),
 		types.BQTableID(tableID),
 		&bigquery.TableMetadata{
@@ -37,7 +35,8 @@ func TestCreateOrUpdateTable(t *testing.T) {
 		})).NoError(t)
 
 	// Update table
-	gt.R1(uc.CreateOrUpdateTable(ctx,
+	gt.R1(usecase.CreateOrUpdateTable(ctx,
+		bqClient,
 		types.BQDatasetID(bqDataset),
 		types.BQTableID(tableID),
 		&bigquery.TableMetadata{

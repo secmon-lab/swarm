@@ -53,14 +53,25 @@ func TestLoadData(t *testing.T) {
 	testCases := map[string]struct {
 		objectName types.CSObjectID
 		objectData []byte
+		model.Source
 	}{
 		"cloudtrail_example.json": {
 			objectName: "cloudtrail_example.log",
 			objectData: cloudTrailExampleRaw,
+			Source: model.Source{
+				Parser:   types.JSONParser,
+				Schema:   "cloudtrail",
+				Compress: types.NoCompress,
+			},
 		},
 		"cloudtrail_example.json.gz": {
 			objectName: "cloudtrail_example.log.gz",
 			objectData: cloudTrailExampleGzip,
+			Source: model.Source{
+				Parser:   types.JSONParser,
+				Schema:   "cloudtrail",
+				Compress: types.GZIPComp,
+			},
 		},
 	}
 
@@ -85,15 +96,12 @@ func TestLoadData(t *testing.T) {
 				usecase.WithMetadata(meta),
 			)
 
-			req := &model.LoadDataRequest{
-				CSEvent: &model.CloudStorageEvent{
-					Kind:   "storage#object",
-					Bucket: "cloudtrail-logs",
-					Name:   tc.objectName,
-				},
+			req := &model.LoadRequest{
+				Source: tc.Source,
+				Object: model.NewCSObject("cloudtrail-logs", tc.objectName),
 			}
 
-			gt.NoError(t, uc.LoadData(ctx, req))
+			gt.NoError(t, uc.Load(ctx, []*model.LoadRequest{req}))
 
 			ids := []types.LogID{
 				"ac3cfd93-435d-41cc-bbd7-aad0340ec668",

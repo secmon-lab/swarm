@@ -6,15 +6,24 @@ import (
 	"github.com/m-mizutani/swarm/pkg/domain/types"
 )
 
-type EventLog struct {
+type LoadLog struct {
 	ID         types.RequestID
-	CSBucket   types.CSBucket
-	CSObjectID types.CSObjectID
 	StartedAt  time.Time
 	FinishedAt time.Time
 	Success    bool
+	Sources    []*SourceLog
 	Ingests    []*IngestLog
 	Error      string
+}
+
+type SourceLog struct {
+	CSBucket   types.CSBucket
+	CSObjectID types.CSObjectID
+	Source
+	RowCount   int
+	StartedAt  time.Time
+	FinishedAt time.Time
+	Success    bool
 }
 
 type IngestLog struct {
@@ -29,11 +38,26 @@ type IngestLog struct {
 	Success      bool
 }
 
-type EventLogRaw struct {
-	EventLog
+type LoadLogRaw struct {
+	LoadLog
 	StartedAt  int64
 	FinishedAt int64
 	Ingests    []*IngestLogRaw
+	Sources    []*SourceLogRaw
+}
+
+type SourceLogRaw struct {
+	SourceLog
+	StartedAt  int64
+	FinishedAt int64
+}
+
+func (x *SourceLog) Raw() *SourceLogRaw {
+	return &SourceLogRaw{
+		SourceLog:  *x,
+		StartedAt:  x.StartedAt.UnixMicro(),
+		FinishedAt: x.FinishedAt.UnixMicro(),
+	}
 }
 
 type IngestLogRaw struct {
@@ -42,12 +66,26 @@ type IngestLogRaw struct {
 	FinishedAt int64
 }
 
-func (x *EventLog) Raw() *EventLogRaw {
-	resp := &EventLogRaw{
-		EventLog:   *x,
+func (x *IngestLog) Raw() *IngestLogRaw {
+	return &IngestLogRaw{
+		IngestLog:  *x,
 		StartedAt:  x.StartedAt.UnixMicro(),
 		FinishedAt: x.FinishedAt.UnixMicro(),
-		Ingests:    make([]*IngestLogRaw, len(x.Ingests)),
+	}
+}
+
+func (x *LoadLog) Raw() *LoadLogRaw {
+	resp := &LoadLogRaw{
+		LoadLog:    *x,
+		StartedAt:  x.StartedAt.UnixMicro(),
+		FinishedAt: x.FinishedAt.UnixMicro(),
+
+		Sources: make([]*SourceLogRaw, len(x.Sources)),
+		Ingests: make([]*IngestLogRaw, len(x.Ingests)),
+	}
+
+	for i, source := range x.Sources {
+		resp.Sources[i] = source.Raw()
 	}
 
 	for i, route := range x.Ingests {
@@ -55,14 +93,6 @@ func (x *EventLog) Raw() *EventLogRaw {
 	}
 
 	return resp
-}
-
-func (x *IngestLog) Raw() *IngestLogRaw {
-	return &IngestLogRaw{
-		IngestLog:  *x,
-		StartedAt:  x.StartedAt.UnixMicro(),
-		FinishedAt: x.FinishedAt.UnixMicro(),
-	}
 }
 
 type LogRecord struct {
@@ -87,4 +117,12 @@ type LogRecordRaw struct {
 	LogRecord
 	Timestamp  int64
 	InsertedAt int64
+}
+
+type LogRecordSet map[BigQueryDest][]*LogRecord
+
+func (x LogRecordSet) Merge(src LogRecordSet) {
+	for srcKey, srcRecords := range src {
+		x[srcKey] = append(x[srcKey], srcRecords...)
+	}
 }

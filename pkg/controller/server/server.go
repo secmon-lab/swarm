@@ -66,9 +66,20 @@ func handlePubSubEvent(uc interfaces.UseCase, r *http.Request) error {
 		return goerr.Wrap(err, "failed to unmarshal data").With("data", string(data))
 	}
 
-	if err := uc.LoadData(r.Context(), &model.LoadDataRequest{
-		CSEvent: &event,
-	}); err != nil {
+	sources, err := uc.EventToSources(r.Context(), &event)
+	if err != nil {
+		return goerr.Wrap(err, "failed to convert event to sources").With("event", event)
+	}
+
+	loadReq := make([]*model.LoadRequest, len(sources))
+	for i := range sources {
+		loadReq[i] = &model.LoadRequest{
+			Object: model.NewCSObject(event.Bucket, event.Name),
+			Source: *sources[i],
+		}
+	}
+
+	if err := uc.Load(r.Context(), loadReq); err != nil {
 		return goerr.Wrap(err).With("event", event)
 	}
 

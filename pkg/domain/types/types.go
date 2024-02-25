@@ -40,17 +40,17 @@ type GoogleProjectID string
 
 type BQDatasetID string
 type BQTableID string
-type BQTimeUnit string
+type BQPartition string
 
 func (x BQDatasetID) String() string { return string(x) }
 func (x BQTableID) String() string   { return string(x) }
 
 const (
-	BQTimeUnitNone  BQTimeUnit = ""
-	BQTimeUnitHour  BQTimeUnit = "hour"
-	BQTimeUnitDay   BQTimeUnit = "day"
-	BQTimeUnitMonth BQTimeUnit = "month"
-	BQTimeUnitYear  BQTimeUnit = "year"
+	BQPartitionNone  BQPartition = ""
+	BQPartitionHour  BQPartition = "hour"
+	BQPartitionDay   BQPartition = "day"
+	BQPartitionMonth BQPartition = "month"
+	BQPartitionYear  BQPartition = "year"
 )
 
 type CSBucket string
@@ -97,7 +97,8 @@ const (
 type ObjectCompress string
 
 const (
-	GZIPComp ObjectCompress = "gzip"
+	NoCompress ObjectCompress = ""
+	GZIPComp   ObjectCompress = "gzip"
 )
 
 type ObjectSchema string

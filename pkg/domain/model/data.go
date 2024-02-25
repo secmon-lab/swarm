@@ -2,15 +2,16 @@ package model
 
 import (
 	"crypto/md5"
+	"encoding/base64"
 	"encoding/binary"
-	"encoding/hex"
 
 	"github.com/m-mizutani/swarm/pkg/domain/types"
 )
 
 type RawRecord struct {
-	data any
-	hash string
+	data   any
+	hash   string
+	schema types.ObjectSchema
 }
 
 type CSObject struct {
@@ -18,8 +19,11 @@ type CSObject struct {
 	object types.CSObjectID
 }
 
-func NewCSObject(bucket types.CSBucket, object types.CSObjectID) *CSObject {
-	return &CSObject{
+func (x *CSObject) Bucket() types.CSBucket   { return x.bucket }
+func (x *CSObject) Object() types.CSObjectID { return x.object }
+
+func NewCSObject(bucket types.CSBucket, object types.CSObjectID) CSObject {
+	return CSObject{
 		bucket: bucket,
 		object: object,
 	}
@@ -36,6 +40,6 @@ func NewRawRecord(obj *CSObject, idx int, data any) *RawRecord {
 
 	return &RawRecord{
 		data: data,
-		hash: hex.EncodeToString(h.Sum(nil)),
+		hash: base64.StdEncoding.EncodeToString(h.Sum(nil)),
 	}
 }
