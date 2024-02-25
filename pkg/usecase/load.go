@@ -6,9 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"sync"
 	"time"
 
 	"cloud.google.com/go/bigquery"
+	"github.com/hashicorp/go-multierror"
 	"github.com/m-mizutani/goerr"
 	"github.com/m-mizutani/swarm/pkg/domain/interfaces"
 	"github.com/m-mizutani/swarm/pkg/domain/model"
@@ -106,48 +108,86 @@ func (x *UseCase) Load(ctx context.Context, requests []*model.LoadRequest) error
 	return nil
 }
 
-func importLogRecords(ctx context.Context, clients *infra.Clients, requests []*model.LoadRequest) (model.LogRecordSet, []*model.SourceLog, error) {
+type importSourceResponse struct {
+	dstMap model.LogRecordSet
+	log    *model.SourceLog
+}
+
+const (
+	importLogRecordsConcurrency = 32
+)
+
+func importLogRecords(ctx context.Context, clients *infra.Clients, requests []*model.LoadRequest) (model.LogRecordSet, []*model.SourceLog, *multierror.Error) {
 	var logs []*model.SourceLog
 	dstMap := model.LogRecordSet{}
 
-	for _, req := range requests {
-		resp, log, err := importSource(ctx, clients, req)
-		if err != nil {
-			return nil, logs, err
-		}
-		logs = append(logs, log)
+	var wg sync.WaitGroup
+	reqCh := make(chan *model.LoadRequest, len(requests))
+	respCh := make(chan *importSourceResponse, len(requests))
+	errCh := make(chan error, len(requests))
 
-		dstMap.Merge(resp)
+	for i := 0; i < importLogRecordsConcurrency; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for req := range reqCh {
+				result, err := importSource(ctx, clients, req)
+				if err != nil {
+					utils.HandleError(ctx, "failed to import source", err)
+					errCh <- err
+				}
+				respCh <- result
+			}
+		}()
 	}
 
-	return dstMap, logs, nil
+	for i := 0; i < len(requests); i++ {
+		reqCh <- requests[i]
+	}
+	close(reqCh)
+	wg.Wait()
+	close(respCh)
+	close(errCh)
+
+	for req := range respCh {
+		logs = append(logs, req.log)
+		dstMap.Merge(req.dstMap)
+	}
+
+	var mErr *multierror.Error
+	for err := range errCh {
+		mErr = multierror.Append(mErr, err)
+	}
+
+	return dstMap, logs, mErr
 }
 
-func importSource(ctx context.Context, clients *infra.Clients, req *model.LoadRequest) (model.LogRecordSet, *model.SourceLog, error) {
-	dstMap := model.LogRecordSet{}
-
-	srcLog := &model.SourceLog{
-		CSBucket:   req.Object.Bucket(),
-		CSObjectID: req.Object.Object(),
-		RowCount:   0,
-		Source:     req.Source,
-		StartedAt:  time.Now(),
+func importSource(ctx context.Context, clients *infra.Clients, req *model.LoadRequest) (*importSourceResponse, error) {
+	result := &importSourceResponse{
+		dstMap: model.LogRecordSet{},
+		log: &model.SourceLog{
+			CSBucket:   req.Object.Bucket(),
+			CSObjectID: req.Object.Object(),
+			RowCount:   0,
+			Source:     req.Source,
+			StartedAt:  time.Now(),
+		},
 	}
 	defer func() {
-		srcLog.FinishedAt = time.Now()
+		result.log.FinishedAt = time.Now()
 	}()
 
 	rows, err := downloadCloudStorageObject(ctx, clients.CloudStorage(), req)
 	if err != nil {
-		return nil, srcLog, err
+		return result, err
 	}
 
 	for _, row := range rows {
-		srcLog.RowCount++
+		result.log.RowCount++
 
 		var output model.SchemaPolicyOutput
 		if err := clients.Policy().Query(ctx, req.Source.Schema.Query(), row, &output); err != nil {
-			return nil, srcLog, err
+			return result, err
 		}
 
 		if len(output.Logs) == 0 {
@@ -157,26 +197,28 @@ func importSource(ctx context.Context, clients *infra.Clients, req *model.LoadRe
 
 		for idx, log := range output.Logs {
 			if err := log.Validate(); err != nil {
-				return nil, srcLog, err
+				return result, err
 			}
 			if log.ID == "" {
 				log.ID = types.NewLogID(req.Object.Bucket(), req.Object.Object(), idx)
 			}
 
 			tsNano := math.Mod(log.Timestamp, 1.0) * 1000 * 1000 * 1000
-			dstMap[log.BigQueryDest] = append(dstMap[log.BigQueryDest], &model.LogRecord{
+			record := &model.LogRecord{
 				ID:         log.ID,
 				Timestamp:  time.Unix(int64(log.Timestamp), int64(tsNano)),
 				InsertedAt: time.Now(),
 
 				// If there is a field that has nil value in the log.Data, the field can not be estimated field type by bqs.Infer. It will cause an error when inserting data to BigQuery. So, remove nil value from log.Data.
 				Data: cloneWithoutNil(log.Data),
-			})
+			}
+
+			result.dstMap[log.BigQueryDest] = append(result.dstMap[log.BigQueryDest], record)
 		}
 	}
 
-	srcLog.Success = true
-	return dstMap, srcLog, nil
+	result.log.Success = true
+	return result, nil
 }
 
 func downloadCloudStorageObject(ctx context.Context, csClient interfaces.CloudStorage, req *model.LoadRequest) ([]any, error) {
