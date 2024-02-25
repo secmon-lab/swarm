@@ -13,7 +13,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-func execCommand(rt *runtime) *cli.Command {
+func ingestCommand(rt *runtime) *cli.Command {
 	var (
 		dryRun   bool
 		output   string
@@ -22,9 +22,9 @@ func execCommand(rt *runtime) *cli.Command {
 		metadata config.Metadata
 	)
 	return &cli.Command{
-		Name:      "exec",
-		Aliases:   []string{"e"},
-		Usage:     "Execute data injection for logs",
+		Name:      "ingest",
+		Aliases:   []string{"i"},
+		Usage:     "Ingest data from Cloud Storage into BigQuery directly",
 		ArgsUsage: "[object path...]",
 		Flags: mergeFlags([]cli.Flag{
 			&cli.BoolFlag{

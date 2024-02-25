@@ -32,7 +32,7 @@ func Run(argv []string) error {
 			return nil
 		},
 		Commands: []*cli.Command{
-			execCommand(&rt),
+			ingestCommand(&rt),
 			serveCommand(&rt),
 			retryCommand(&rt),
 			clientCommand(&rt),
