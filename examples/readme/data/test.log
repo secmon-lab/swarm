@@ -1,0 +1,2 @@
+{"log_id": "zhT9XEfXopNeTqv9", "event_time": 1559347200, "remote_ip": "192.168.12.1", "user": "user1", "action": "login", "success": true}
+{"log_id": "pY4relg3LolbiPyT", "event_time": 1559365421, "remote_ip": "10.2.3.4", "user": "user2", "action": "login", "success": true}

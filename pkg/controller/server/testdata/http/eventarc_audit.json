@@ -1,0 +1,50 @@
+{
+  "@type": "type.googleapis.com/google.events.cloud.audit.v1.LogEntryData",
+  "protoPayload": {
+    "status": {},
+    "authenticationInfo": {
+      "principalEmail": "mizutani@example.com"
+    },
+    "requestMetadata": {
+      "callerIp": "192.168.1.2",
+      "callerSuppliedUserAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36,gzip(gfe)",
+      "requestAttributes": {
+        "time": "2024-02-10T00:36:31.788403758Z",
+        "auth": {}
+      },
+      "destinationAttributes": {}
+    },
+    "serviceName": "storage.googleapis.com",
+    "methodName": "storage.objects.create",
+    "authorizationInfo": [
+      {
+        "resource": "projects/_/buckets/test-bucket/objects/log_data.json.gz",
+        "permission": "storage.objects.delete",
+        "granted": true,
+        "resourceAttributes": {}
+      },
+      {
+        "resource": "projects/_/buckets/test-bucket/objects/log_data.json.gz",
+        "permission": "storage.objects.create",
+        "granted": true,
+        "resourceAttributes": {}
+      }
+    ],
+    "resourceName": "projects/_/buckets/test-bucket/objects/log_data.json.gz",
+    "serviceData": {},
+    "resourceLocation": { "currentLocations": ["asia-northeast1"] }
+  },
+  "insertId": "6nvui4db1zj",
+  "resource": {
+    "type": "gcs_bucket",
+    "labels": {
+      "project_id": "example-project",
+      "location": "asia-northeast1",
+      "bucket_name": "test-bucket"
+    }
+  },
+  "timestamp": "2024-02-10T00:36:31.781692945Z",
+  "severity": "INFO",
+  "logName": "projects/example-project/logs/cloudaudit.googleapis.com%2Fdata_access",
+  "receiveTimestamp": "2024-02-10T00:36:32.591679795Z"
+}
