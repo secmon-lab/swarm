@@ -6,10 +6,9 @@ A tool to ingest log data with a dynamic schema from Google Cloud Storage into B
 
 ## Features
 
-- Retrieve log data objects such as JSON Lines from Cloud Storage and ingest data into BigQuery
-- Receive events such as creation of object storage from Cloud Storage via Pub/Sub and ingest the objects in near real-time
-- Automatically detect the schema of objects and create tables in BigQuery or update the schema
-- Control the ingestion method of data, modify data for each record, and determine the destination to save using Rego
+- Receive events, such as object storage creation in Cloud Storage, via Pub/Sub and ingest the objects as near real-time log records
+- **Automatically detect the schema** of objects and **continuously update the schema** of BigQuery tables
+- Control the destination of BigQuery dataset and table for ingestion, and modify data for each record using the [Rego](https://www.openpolicyagent.org/docs/latest/) language
 - (To be implemented) Read all objects stored in a Cloud Storage bucket and rebuild the BigQuery table
 
 ## Documents
