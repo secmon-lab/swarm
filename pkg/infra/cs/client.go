@@ -49,4 +49,8 @@ func (x *Client) Attrs(ctx context.Context, bucket types.CSBucket, object types.
 	return attrs, nil
 }
 
+func (x *Client) List(ctx context.Context, bucket types.CSBucket, query *storage.Query) interfaces.CSObjectIterator {
+	return x.client.Bucket(bucket.String()).Objects(ctx, query)
+}
+
 var _ interfaces.CloudStorage = &Client{}

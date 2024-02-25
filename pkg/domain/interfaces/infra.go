@@ -21,7 +21,12 @@ type BigQuery interface {
 	CreateTable(ctx context.Context, dataset types.BQDatasetID, table types.BQTableID, md *bigquery.TableMetadata) error
 }
 
+type CSObjectIterator interface {
+	Next() (*storage.ObjectAttrs, error)
+}
+
 type CloudStorage interface {
 	Open(ctx context.Context, bucket types.CSBucket, object types.CSObjectID) (io.ReadCloser, error)
 	Attrs(ctx context.Context, bucket types.CSBucket, object types.CSObjectID) (*storage.ObjectAttrs, error)
+	List(ctx context.Context, bucket types.CSBucket, query *storage.Query) CSObjectIterator
 }
