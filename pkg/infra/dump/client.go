@@ -18,8 +18,8 @@ type Client struct {
 }
 
 // CreateTable implements interfaces.BigQuery. Nothing to do in dumper.
-func (*Client) CreateTable(ctx context.Context, dataset types.BQDatasetID, table types.BQTableID, md *bigquery.TableMetadata) error {
-	return nil
+func (x *Client) CreateTable(ctx context.Context, dataset types.BQDatasetID, table types.BQTableID, md *bigquery.TableMetadata) error {
+	return dumpSchema(x.outDir, dataset, table, md.Schema)
 }
 
 // GetMetadata implements interfaces.BigQuery.
@@ -54,17 +54,21 @@ func (x *Client) Query(ctx context.Context, query string) (interfaces.BigQueryIt
 
 // UpdateSchema implements interfaces.BigQuery. It writes schema to a file in JSON format. The file name is "{outDir}/{dataset}.{table}.schema.json". If the file does not exist, it creates a new file. If the file exists, it overwrites the file. The file is not uploaded to BigQuery.
 func (x *Client) UpdateTable(ctx context.Context, dataset types.BQDatasetID, table types.BQTableID, md bigquery.TableMetadataToUpdate, eTag string) error {
+	return dumpSchema(x.outDir, dataset, table, md.Schema)
+}
+
+func dumpSchema(dir string, dataset types.BQDatasetID, table types.BQTableID, schema bigquery.Schema) error {
 	fname := fmt.Sprintf("%s.%s.schema.json", dataset, table)
-	fpath := filepath.Join(x.outDir, fname)
+	fpath := filepath.Join(dir, fname)
 	fd, err := os.Create(fpath)
 	if err != nil {
 		return goerr.Wrap(err, "failed to create file").With("file", fpath)
 	}
 	defer fd.Close()
 
-	raw, err := md.Schema.ToJSONFields()
+	raw, err := schema.ToJSONFields()
 	if err != nil {
-		return goerr.Wrap(err, "failed to convert schema to JSON fields").With("schema", md.Schema)
+		return goerr.Wrap(err, "failed to convert schema to JSON fields").With("schema", schema)
 	}
 
 	if _, err := fd.Write(raw); err != nil {
