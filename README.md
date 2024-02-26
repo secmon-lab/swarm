@@ -25,9 +25,9 @@ An Event rule specifies how to ingest data using the [payload data](https://clou
 package event
 
 src[s] {
-	input.bucket == "swarm-test-bucket"
-	starts_with(input.name, "logs/")
-	ends_with(input.name, ".log.gz")
+	input.data.bucket == "swarm-test-bucket"
+	starts_with(input.data.name, "logs/")
+	ends_with(input.data.name, ".log.gz")
 
 	s := {
 		"parser": "json",

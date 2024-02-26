@@ -26,27 +26,54 @@ package event
 
 ### Input
 
-The data obtained by Swarm as a notification event is passed as the `input` for evaluation in Rego. For example, when an object is created in Cloud Storage, the following data is passed:
+
+The data obtained by Swarm as a notification event is converted and passed into the `input` for evaluation in Rego. The `input` has the following schema:
+
+- `cs`: (Optional): The field indicates object identity of Cloud Storage
+  - `bucket`: (Required, `string`) Specifies the name of the bucket containing the object.
+  - `name`: (Required, `string`) Specifies the name of the object.
+- `size`: (Optional, `int64`) Specifies the size of the object in bytes. If missing or unknown, it will be omitted.
+- `created_at`: (Optional, `int64`) Specifies the Unix timestamp (second) the object was created. If missing or unknown, it will be omitted.
+- `digests`: (Optional, `array`) Specifies the hash value of the object.
+  - `alg`: (Required, `string`) Specifies the algorithm used for the hash value.
+  - `value`: (Required, `string`) Specifies the hash value.
+- `data`: (Optional, `object`) Represents the original notification data. This field is used to access the original notification data when necessary.
+
+An example of the `input` is as follows:
 
 ```json
 {
-  "kind": "storage#object",
-  "id": "mztn-sample-bucket/my_logs/GA1ZivRbQAAAyXs.log/1708130907832889",
-  "selfLink": "https://www.googleapis.com/storage/v1/b/mztn-sample-bucket/o/mydir%2FGA1ZivRbQAAAyXs.log",
-  "name": "mydir/GA1ZivRbQAAAyXs.log",
-  "bucket": "mztn-sample-bucket",
-  "generation": "1708130907832889",
-  "metageneration": "1",
-  "contentType": "text/plain",
-  "timeCreated": "2024-02-17T00:48:27.868Z",
-  "updated": "2024-02-17T00:48:27.868Z",
-  "storageClass": "STANDARD",
-  "timeStorageClassUpdated": "2024-02-17T00:48:27.868Z",
-  "size": "434358",
-  "md5Hash": "65uKQpZiisu9kP8gBl+50Q==",
-  "mediaLink": "https://storage.googleapis.com/download/storage/v1/b/mztn-sample-bucket/o/mydir%2FGA1ZivRbQAAAyXs.log?generation=1708130907832889&alt=media",
-  "crc32c": "Ints+A==",
-  "etag": "CLmE97+TsYQDEAE="
+  "cs": {
+    "bucket": "mztn-sample-bucket",
+    "name": "mydir/GA1ZivRbQAAAyXs.log"
+  },
+  "size": 434358,
+  "created_at": 1708130907,
+  "digests": [
+    {
+      "alg": "md5",
+      "value": "eb9b8a4296628acbbd90ff20065fb9d1"
+    },
+  ],
+  "data": {
+    "kind": "storage#object",
+    "id": "mztn-sample-bucket/my_logs/GA1ZivRbQAAAyXs.log/1708130907832889",
+    "selfLink": "https://www.googleapis.com/storage/v1/b/mztn-sample-bucket/o/mydir%2FGA1ZivRbQAAAyXs.log",
+    "name": "mydir/GA1ZivRbQAAAyXs.log",
+    "bucket": "mztn-sample-bucket",
+    "generation": "1708130907832889",
+    "metageneration": "1",
+    "contentType": "text/plain",
+    "timeCreated": "2024-02-17T00:48:27.868Z",
+    "updated": "2024-02-17T00:48:27.868Z",
+    "storageClass": "STANDARD",
+    "timeStorageClassUpdated": "2024-02-17T00:48:27.868Z",
+    "size": "434358",
+    "md5Hash": "65uKQpZiisu9kP8gBl+50Q==",
+    "mediaLink": "https://storage.googleapis.com/download/storage/v1/b/mztn-sample-bucket/o/mydir%2FGA1ZivRbQAAAyXs.log?generation=1708130907832889&alt=media",
+    "crc32c": "Ints+A==",
+    "etag": "CLmE97+TsYQDEAE="
+  }
 }
 ```
 
@@ -68,9 +95,9 @@ package event
 
 # Rule1: Source definition for compressed log files
 src[s] {
-    input.bucket == "mztn-sample-bucket"
-    startswith(input.name, "my_logs/")
-    endswith(input.name, ".log.gz")
+    input.cs,bucket == "mztn-sample-bucket"
+    startswith(input.cs.name, "my_logs/")
+    endswith(input.cs.name, ".log.gz")
 
     s := {
         "parser": "json",
@@ -81,9 +108,9 @@ src[s] {
 
 # Rule2: Source definition for uncompressed log files
 src[s] {
-    input.bucket == "mztn-sample-bucket"
-    startswith(input.name, "my_logs/")
-    endswith(input.name, ".log")
+    input.cs.bucket == "mztn-sample-bucket"
+    startswith(input.cs.name, "my_logs/")
+    endswith(input.cs.name, ".log")
 
     s := {
         "parser": "json",

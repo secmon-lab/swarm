@@ -4,9 +4,9 @@ src[{
 	"schema": "cloudtrail",
 	"parser": "json",
 }] {
-	input.kind == "storage#object"
-	input.bucket == "cloudtrail-logs"
-	endswith(input.name, ".log")
+	input.data.kind == "storage#object"
+	input.cs.bucket == "cloudtrail-logs"
+	endswith(input.cs.name, ".log")
 }
 
 src[{
@@ -14,7 +14,7 @@ src[{
 	"parser": "json",
 	"compress": "gzip",
 }] {
-	input.kind == "storage#object"
-	input.bucket == "cloudtrail-logs"
-	endswith(input.name, ".gz")
+	input.data.kind == "storage#object"
+	input.cs.bucket == "cloudtrail-logs"
+	endswith(input.cs.name, ".gz")
 }
