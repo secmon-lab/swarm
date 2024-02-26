@@ -29,7 +29,7 @@ func TestEventRequest(t *testing.T) {
 	}{
 		"valid pubsub": {
 			method:     http.MethodPost,
-			path:       "/event/pubsub",
+			path:       "/event/pubsub/cs",
 			body:       pubsubBody,
 			expect:     http.StatusOK,
 			calledLoad: 1,
@@ -37,7 +37,7 @@ func TestEventRequest(t *testing.T) {
 		},
 		"invalid pubsub": {
 			method:     http.MethodPost,
-			path:       "/event/pubsub",
+			path:       "/event/pubsub/cs",
 			body:       []byte("invalid"),
 			expect:     http.StatusBadRequest,
 			calledLoad: 0,
@@ -53,7 +53,7 @@ func TestEventRequest(t *testing.T) {
 		},
 		"invalid method": {
 			method:     http.MethodGet,
-			path:       "/event/pubsub",
+			path:       "/event/pubsub/cs",
 			body:       pubsubBody,
 			expect:     http.StatusMethodNotAllowed,
 			calledLoad: 0,
@@ -70,16 +70,15 @@ func TestEventRequest(t *testing.T) {
 					gt.Equal(t, req[0].Source.Parser, types.JSONParser)
 					gt.Equal(t, req[0].Source.Schema, "cloudtrail")
 					gt.Equal(t, req[0].Source.Compress, types.NoCompress)
-					gt.Equal(t, req[0].Object.Bucket(), "mztn-sample-bucket")
-					gt.Equal(t, req[0].Object.Object(), "mydir/GA1ZivRbQAAAyXs.jpg")
+					gt.Equal(t, req[0].Object.CS.Bucket, "mztn-sample-bucket")
+					gt.Equal(t, req[0].Object.CS.Name, "mydir/GA1ZivRbQAAAyXs.jpg")
 					calledLoad++
 					return nil
 				},
-				MockEventToSources: func(ctx context.Context, input interface{}) ([]*model.Source, error) {
+				MockObjectToSources: func(ctx context.Context, input model.Object) ([]*model.Source, error) {
 					calledE2S++
-					ev := gt.Cast[*model.CloudStorageEvent](t, input)
-					gt.Equal(t, ev.Bucket, "mztn-sample-bucket")
-					gt.Equal(t, ev.ID, "mztn-sample-bucket/mydir/GA1ZivRbQAAAyXs.jpg/1708130907832889")
+					gt.Equal(t, input.CS.Bucket, "mztn-sample-bucket")
+					gt.Equal(t, input.CS.Name, "mydir/GA1ZivRbQAAAyXs.jpg")
 
 					return []*model.Source{
 						{

@@ -7,6 +7,7 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/m-mizutani/goerr"
 	"github.com/m-mizutani/swarm/pkg/domain/interfaces"
+	"github.com/m-mizutani/swarm/pkg/domain/model"
 	"github.com/m-mizutani/swarm/pkg/domain/types"
 )
 
@@ -25,10 +26,10 @@ func New(ctx context.Context) (*Client, error) {
 	}, nil
 }
 
-func (x *Client) Open(ctx context.Context, bucket types.CSBucket, object types.CSObjectID) (io.ReadCloser, error) {
+func (x *Client) Open(ctx context.Context, obj model.CloudStorageObject) (io.ReadCloser, error) {
 	r, err := x.client.
-		Bucket(bucket.String()).
-		Object(object.String()).
+		Bucket(obj.Bucket.String()).
+		Object(obj.Name.String()).
 		NewReader(ctx)
 	if err != nil {
 		return nil, goerr.Wrap(err, "failed to create reader")
@@ -37,10 +38,10 @@ func (x *Client) Open(ctx context.Context, bucket types.CSBucket, object types.C
 	return r, nil
 }
 
-func (x *Client) Attrs(ctx context.Context, bucket types.CSBucket, object types.CSObjectID) (*storage.ObjectAttrs, error) {
+func (x *Client) Attrs(ctx context.Context, obj model.CloudStorageObject) (*storage.ObjectAttrs, error) {
 	attrs, err := x.client.
-		Bucket(bucket.String()).
-		Object(object.String()).
+		Bucket(obj.Bucket.String()).
+		Object(obj.Name.String()).
 		Attrs(ctx)
 	if err != nil {
 		return nil, goerr.Wrap(err, "failed to get object attributes")

@@ -104,3 +104,13 @@ const (
 type ObjectSchema string
 
 func (x ObjectSchema) Query() string { return "data.schema." + string(x) }
+
+// EventSchema presents schema of event data that is received from HTTP request.
+type EventSchema string
+
+const (
+	CloudStorageEventSchema EventSchema = "cs"
+	SwarmEventSchema        EventSchema = "swarm"
+)
+
+func (x EventSchema) Query() string { return "data.event." + string(x) }

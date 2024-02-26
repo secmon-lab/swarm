@@ -7,7 +7,7 @@ import (
 )
 
 type UseCase interface {
-	EventToSources(ctx context.Context, input any) ([]*model.Source, error)
+	ObjectToSources(ctx context.Context, obj model.Object) ([]*model.Source, error)
 	Load(ctx context.Context, requests []*model.LoadRequest) error
 	Authorize(ctx context.Context, input *model.AuthPolicyInput) error
 }

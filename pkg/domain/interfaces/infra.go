@@ -6,6 +6,7 @@ import (
 
 	"cloud.google.com/go/bigquery"
 	"cloud.google.com/go/storage"
+	"github.com/m-mizutani/swarm/pkg/domain/model"
 	"github.com/m-mizutani/swarm/pkg/domain/types"
 )
 
@@ -26,7 +27,7 @@ type CSObjectIterator interface {
 }
 
 type CloudStorage interface {
-	Open(ctx context.Context, bucket types.CSBucket, object types.CSObjectID) (io.ReadCloser, error)
-	Attrs(ctx context.Context, bucket types.CSBucket, object types.CSObjectID) (*storage.ObjectAttrs, error)
+	Open(ctx context.Context, obj model.CloudStorageObject) (io.ReadCloser, error)
+	Attrs(ctx context.Context, obj model.CloudStorageObject) (*storage.ObjectAttrs, error)
 	List(ctx context.Context, bucket types.CSBucket, query *storage.Query) CSObjectIterator
 }

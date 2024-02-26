@@ -80,7 +80,7 @@ func TestLoadData(t *testing.T) {
 			ctx := context.Background()
 			bqClient := bq.NewGeneralMock()
 			csClient := &cs.Mock{
-				MockOpen: func(ctx context.Context, bucket types.CSBucket, object types.CSObjectID) (io.ReadCloser, error) {
+				MockOpen: func(ctx context.Context, obj model.CloudStorageObject) (io.ReadCloser, error) {
 					return io.NopCloser(bytes.NewReader([]byte(tc.objectData))), nil
 				},
 			}
@@ -98,7 +98,12 @@ func TestLoadData(t *testing.T) {
 
 			req := &model.LoadRequest{
 				Source: tc.Source,
-				Object: model.NewCSObject("cloudtrail-logs", tc.objectName),
+				Object: model.Object{
+					CS: &model.CloudStorageObject{
+						Bucket: "test-bucket",
+						Name:   tc.objectName,
+					},
+				},
 			}
 
 			gt.NoError(t, uc.Load(ctx, []*model.LoadRequest{req}))

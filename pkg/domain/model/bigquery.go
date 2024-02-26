@@ -17,8 +17,7 @@ type LoadLog struct {
 }
 
 type SourceLog struct {
-	CSBucket   types.CSBucket
-	CSObjectID types.CSObjectID
+	CS *CloudStorageObject
 	Source
 	RowCount   int
 	StartedAt  time.Time

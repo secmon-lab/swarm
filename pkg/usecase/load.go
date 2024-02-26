@@ -4,7 +4,6 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
-	"fmt"
 	"math"
 	"sync"
 	"time"
@@ -20,42 +19,31 @@ import (
 )
 
 func (x *UseCase) LoadDataByObject(ctx context.Context, url types.CSUrl) error {
-	bucket, objID, err := url.Parse()
+	bucket, objName, err := url.Parse()
 	if err != nil {
 		return goerr.Wrap(err, "failed to parse CloudStorage URL").With("url", url)
 	}
 
-	attrs, err := x.clients.CloudStorage().Attrs(ctx, bucket, objID)
-	if err != nil {
-		return goerr.Wrap(err, "failed to get object attributes").With("bucket", bucket).With("objID", objID)
+	csObj := model.CloudStorageObject{
+		Bucket: bucket,
+		Name:   objName,
 	}
 
-	req := &model.LoadDataRequest{
-		CSEvent: &model.CloudStorageEvent{
-			Bucket:       bucket,
-			Name:         objID,
-			Size:         fmt.Sprintf("%d", attrs.Size),
-			Etag:         attrs.Etag,
-			ContentType:  attrs.ContentType,
-			Generation:   fmt.Sprintf("%d", attrs.Generation),
-			Kind:         "storage#object",
-			Md5Hash:      string(attrs.MD5),
-			MediaLink:    attrs.MediaLink,
-			StorageClass: attrs.StorageClass,
-			TimeCreated:  attrs.Created.Format("2006-01-02T15:04:05.999Z"),
-			Updated:      attrs.Updated.Format("2006-01-02T15:04:05.999Z"),
-		},
+	attrs, err := x.clients.CloudStorage().Attrs(ctx, csObj)
+	if err != nil {
+		return goerr.Wrap(err, "failed to get object attributes").With("obj", csObj)
 	}
 
-	sources, err := x.EventToSources(ctx, req.CSEvent)
+	obj := model.NewObjectFromCloudStorageAttrs(attrs)
+	sources, err := x.ObjectToSources(ctx, obj)
 	if err != nil {
-		return goerr.Wrap(err, "failed to convert event to sources").With("req", req)
+		return goerr.Wrap(err, "failed to convert event to sources")
 	}
 
 	var loadReq []*model.LoadRequest
 	for _, src := range sources {
 		loadReq = append(loadReq, &model.LoadRequest{
-			Object: model.NewCSObject(req.CSEvent.Bucket, req.CSEvent.Name),
+			Object: obj,
 			Source: *src,
 		})
 	}
@@ -166,11 +154,10 @@ func importSource(ctx context.Context, clients *infra.Clients, req *model.LoadRe
 	result := &importSourceResponse{
 		dstMap: model.LogRecordSet{},
 		log: &model.SourceLog{
-			CSBucket:   req.Object.Bucket(),
-			CSObjectID: req.Object.Object(),
-			RowCount:   0,
-			Source:     req.Source,
-			StartedAt:  time.Now(),
+			CS:        req.Object.CS,
+			RowCount:  0,
+			Source:    req.Source,
+			StartedAt: time.Now(),
 		},
 	}
 	defer func() {
@@ -200,7 +187,8 @@ func importSource(ctx context.Context, clients *infra.Clients, req *model.LoadRe
 				return result, err
 			}
 			if log.ID == "" {
-				log.ID = types.NewLogID(req.Object.Bucket(), req.Object.Object(), idx)
+				// TODO: Fix this when adding another object storage service, such as S3
+				log.ID = types.NewLogID(req.Object.CS.Bucket, req.Object.CS.Name, idx)
 			}
 
 			tsNano := math.Mod(log.Timestamp, 1.0) * 1000 * 1000 * 1000
@@ -223,7 +211,7 @@ func importSource(ctx context.Context, clients *infra.Clients, req *model.LoadRe
 
 func downloadCloudStorageObject(ctx context.Context, csClient interfaces.CloudStorage, req *model.LoadRequest) ([]any, error) {
 	var records []any
-	reader, err := csClient.Open(ctx, req.Object.Bucket(), req.Object.Object())
+	reader, err := csClient.Open(ctx, *req.Object.CS)
 	if err != nil {
 		return nil, goerr.Wrap(err, "failed to open object").With("req", req)
 	}

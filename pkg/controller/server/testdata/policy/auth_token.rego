@@ -7,6 +7,5 @@ deny = false {
 }
 
 allow {
-	print(input.header)
 	input.header.Authorization[_] == "Bearer good-token"
 }
