@@ -69,7 +69,7 @@ func (x *Logger) Configure() (*slog.Logger, error) {
 	}
 
 	filter := masq.New(
-		masq.WithFieldName("Authorization"),
+	// masq.WithFieldName("Authorization"),
 	)
 
 	// Log level

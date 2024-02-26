@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"cloud.google.com/go/bigquery"
 	"github.com/hashicorp/go-multierror"
 	"github.com/m-mizutani/goerr"
 	"github.com/m-mizutani/swarm/pkg/domain/interfaces"
@@ -102,7 +101,7 @@ type importSourceResponse struct {
 }
 
 const (
-	importLogRecordsConcurrency = 32
+	importLogRecordsConcurrency = 256
 )
 
 func importLogRecords(ctx context.Context, clients *infra.Clients, requests []*model.LoadRequest) (model.LogRecordSet, []*model.SourceLog, *multierror.Error) {
@@ -195,7 +194,7 @@ func importSource(ctx context.Context, clients *infra.Clients, req *model.LoadRe
 			record := &model.LogRecord{
 				ID:         log.ID,
 				Timestamp:  time.Unix(int64(log.Timestamp), int64(tsNano)),
-				InsertedAt: time.Now(),
+				IngestedAt: time.Now(),
 
 				// If there is a field that has nil value in the log.Data, the field can not be estimated field type by bqs.Infer. It will cause an error when inserting data to BigQuery. So, remove nil value from log.Data.
 				Data: cloneWithoutNil(log.Data),
@@ -259,25 +258,9 @@ func ingestRecords(ctx context.Context, bq interfaces.BigQuery, bqDst model.BigQ
 		return result, err
 	}
 
-	md := &bigquery.TableMetadata{
-		Schema: schema,
-	}
-
-	tpMap := map[types.BQPartition]bigquery.TimePartitioningType{
-		types.BQPartitionHour:  bigquery.HourPartitioningType,
-		types.BQPartitionDay:   bigquery.DayPartitioningType,
-		types.BQPartitionMonth: bigquery.MonthPartitioningType,
-		types.BQPartitionYear:  bigquery.YearPartitioningType,
-	}
-	if bqDst.Partition != "" {
-		if t, ok := tpMap[bqDst.Partition]; ok {
-			md.TimePartitioning = &bigquery.TimePartitioning{
-				Field: "Timestamp",
-				Type:  t,
-			}
-		} else {
-			return result, goerr.Wrap(types.ErrInvalidPolicyResult, "invalid time unit").With("Partition", bqDst.Partition)
-		}
+	md, err := buildBQMetadata(schema, bqDst.Partition)
+	if err != nil {
+		return result, err
 	}
 
 	finalized, err := createOrUpdateTable(ctx, bq, bqDst.Dataset, bqDst.Table, md)

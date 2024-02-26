@@ -99,7 +99,7 @@ type LogRecord struct {
 	ID         types.LogID
 	IngestID   types.IngestID
 	Timestamp  time.Time
-	InsertedAt time.Time
+	IngestedAt time.Time
 	Data       any
 }
 
@@ -107,7 +107,7 @@ func (x LogRecord) Raw() *LogRecordRaw {
 	return &LogRecordRaw{
 		LogRecord:  x,
 		Timestamp:  x.Timestamp.UnixMicro(),
-		InsertedAt: x.InsertedAt.UnixMicro(),
+		IngestedAt: x.IngestedAt.UnixMicro(),
 	}
 }
 
@@ -115,7 +115,7 @@ func (x LogRecord) Raw() *LogRecordRaw {
 type LogRecordRaw struct {
 	LogRecord
 	Timestamp  int64
-	InsertedAt int64
+	IngestedAt int64
 }
 
 type LogRecordSet map[BigQueryDest][]*LogRecord
