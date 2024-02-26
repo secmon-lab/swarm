@@ -23,12 +23,12 @@ func serveCommand(rt *runtime) *cli.Command {
 		bq       config.BigQuery
 		policy   config.Policy
 		metadata config.Metadata
+		sentry   config.Sentry
 	)
 
 	return &cli.Command{
-		Name:    "serve",
-		Aliases: []string{"s"},
-		Usage:   "Start swarm server",
+		Name:  "serve",
+		Usage: "Start swarm server",
 		Flags: mergeFlags([]cli.Flag{
 			&cli.StringFlag{
 				Name:        "addr",
@@ -38,9 +38,13 @@ func serveCommand(rt *runtime) *cli.Command {
 				Destination: &addr,
 				Value:       "localhost:8080",
 			},
-		}, bq.Flags(), policy.Flags(), metadata.Flags()),
+		}, bq.Flags(), policy.Flags(), metadata.Flags(), sentry.Flags()),
 		Action: func(c *cli.Context) error {
 			ctx := c.Context
+
+			if err := sentry.Configure(); err != nil {
+				return goerr.Wrap(err, "failed to configure sentry")
+			}
 
 			var infraOptions []infra.Option
 

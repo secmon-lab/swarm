@@ -8,6 +8,7 @@ import (
 
 	"cloud.google.com/go/bigquery"
 	"github.com/m-mizutani/goerr"
+	"github.com/m-mizutani/swarm/pkg/domain/types"
 )
 
 func cloneWithoutNil(src interface{}) interface{} {
@@ -125,4 +126,30 @@ func schemaToJSON(schema bigquery.Schema) (string, error) {
 	}
 
 	return out.String(), nil
+}
+
+func buildBQMetadata(schema bigquery.Schema, pt types.BQPartition) (*bigquery.TableMetadata, error) {
+	tpMap := map[types.BQPartition]bigquery.TimePartitioningType{
+		types.BQPartitionHour:  bigquery.HourPartitioningType,
+		types.BQPartitionDay:   bigquery.DayPartitioningType,
+		types.BQPartitionMonth: bigquery.MonthPartitioningType,
+		types.BQPartitionYear:  bigquery.YearPartitioningType,
+	}
+
+	md := &bigquery.TableMetadata{
+		Schema: schema,
+	}
+
+	if pt != types.BQPartitionNone {
+		if t, ok := tpMap[pt]; ok {
+			md.TimePartitioning = &bigquery.TimePartitioning{
+				Field: "Timestamp",
+				Type:  t,
+			}
+		} else {
+			return nil, goerr.Wrap(types.ErrInvalidPolicyResult, "invalid time unit").With("Partition", pt)
+		}
+	}
+
+	return md, nil
 }

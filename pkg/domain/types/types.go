@@ -40,17 +40,17 @@ type GoogleProjectID string
 
 type BQDatasetID string
 type BQTableID string
-type BQTimeUnit string
+type BQPartition string
 
 func (x BQDatasetID) String() string { return string(x) }
 func (x BQTableID) String() string   { return string(x) }
 
 const (
-	BQTimeUnitNone  BQTimeUnit = ""
-	BQTimeUnitHour  BQTimeUnit = "hour"
-	BQTimeUnitDay   BQTimeUnit = "day"
-	BQTimeUnitMonth BQTimeUnit = "month"
-	BQTimeUnitYear  BQTimeUnit = "year"
+	BQPartitionNone  BQPartition = ""
+	BQPartitionHour  BQPartition = "hour"
+	BQPartitionDay   BQPartition = "day"
+	BQPartitionMonth BQPartition = "month"
+	BQPartitionYear  BQPartition = "year"
 )
 
 type CSBucket string
@@ -97,9 +97,20 @@ const (
 type ObjectCompress string
 
 const (
-	GZIPComp ObjectCompress = "gzip"
+	NoCompress ObjectCompress = ""
+	GZIPComp   ObjectCompress = "gzip"
 )
 
 type ObjectSchema string
 
 func (x ObjectSchema) Query() string { return "data.schema." + string(x) }
+
+// EventSchema presents schema of event data that is received from HTTP request.
+type EventSchema string
+
+const (
+	CloudStorageEventSchema EventSchema = "cs"
+	SwarmEventSchema        EventSchema = "swarm"
+)
+
+func (x EventSchema) Query() string { return "data.event." + string(x) }

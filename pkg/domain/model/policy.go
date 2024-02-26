@@ -56,9 +56,9 @@ type SchemaPolicyOutput struct {
 }
 
 type BigQueryDest struct {
-	Dataset  types.BQDatasetID `json:"dataset"`
-	Table    types.BQTableID   `json:"table"`
-	TimeUnit types.BQTimeUnit  `json:"timeunit"`
+	Dataset   types.BQDatasetID `json:"dataset"`
+	Table     types.BQTableID   `json:"table"`
+	Partition types.BQPartition `json:"partition"`
 }
 
 type Log struct {

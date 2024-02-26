@@ -6,19 +6,21 @@ import (
 	"cloud.google.com/go/bigquery"
 	"github.com/m-mizutani/bqs"
 	"github.com/m-mizutani/goerr"
+	"github.com/m-mizutani/swarm/pkg/domain/interfaces"
+	"github.com/m-mizutani/swarm/pkg/domain/model"
 	"github.com/m-mizutani/swarm/pkg/domain/types"
 	"github.com/m-mizutani/swarm/pkg/utils"
 )
 
-func (x *UseCase) CreateOrUpdateTable(ctx context.Context, datasetID types.BQDatasetID, tableID types.BQTableID, md *bigquery.TableMetadata) (bigquery.Schema, error) {
-	old, err := x.clients.BigQuery().GetMetadata(ctx, datasetID, tableID)
+func createOrUpdateTable(ctx context.Context, bq interfaces.BigQuery, datasetID types.BQDatasetID, tableID types.BQTableID, md *bigquery.TableMetadata) (bigquery.Schema, error) {
+	old, err := bq.GetMetadata(ctx, datasetID, tableID)
 	if err != nil {
 		return nil, goerr.Wrap(err, "Failed to get metadata").With("datasetID", datasetID).With("tableID", tableID)
 	}
 
 	if old == nil {
 		utils.CtxLogger(ctx).Info("creating new table", "datasetID", datasetID, "tableID", tableID)
-		return md.Schema, x.clients.BigQuery().CreateTable(ctx, datasetID, tableID, md)
+		return md.Schema, bq.CreateTable(ctx, datasetID, tableID, md)
 	}
 
 	merged, err := bqs.Merge(old.Schema, md.Schema)
@@ -35,7 +37,7 @@ func (x *UseCase) CreateOrUpdateTable(ctx context.Context, datasetID types.BQDat
 		Schema: merged,
 	}
 	utils.CtxLogger(ctx).Info("updating table schema", "datasetID", datasetID, "tableID", tableID)
-	return merged, x.clients.BigQuery().UpdateTable(ctx, datasetID, tableID, update, old.ETag)
+	return merged, bq.UpdateTable(ctx, datasetID, tableID, update, old.ETag)
 }
 
 func inferSchema[T any](data []T) (bigquery.Schema, error) {
@@ -53,4 +55,26 @@ func inferSchema[T any](data []T) (bigquery.Schema, error) {
 	}
 
 	return merged, nil
+}
+
+func setupLoadLogTable(ctx context.Context, bq interfaces.BigQuery, meta *model.MetadataConfig) (bigquery.Schema, error) {
+	schema, err := bqs.Infer(&model.LoadLog{
+		Sources: []*model.SourceLog{{}},
+		Ingests: []*model.IngestLog{{}},
+	})
+	if err != nil {
+		return nil, goerr.Wrap(err, "failed to infer schema")
+	}
+	md := &bigquery.TableMetadata{
+		Schema: schema,
+		TimePartitioning: &bigquery.TimePartitioning{
+			Field: "StartedAt",
+			Type:  bigquery.MonthPartitioningType,
+		},
+	}
+	if _, err := createOrUpdateTable(ctx, bq, meta.Dataset(), meta.Table(), md); err != nil {
+		return nil, goerr.Wrap(err, "failed to create or update table")
+	}
+
+	return schema, nil
 }

@@ -44,7 +44,7 @@ func TestAuthorization(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			r := httptest.NewRequest("POST", "/event/pubsub", strings.NewReader(string(pubsubBody)))
+			r := httptest.NewRequest("POST", "/event/pubsub/cs", strings.NewReader(string(pubsubBody)))
 			r.Header.Set("Authorization", "Bearer "+tc.token)
 			w := httptest.NewRecorder()
 			srv.ServeHTTP(w, r)

@@ -29,15 +29,17 @@ func New(uc interfaces.UseCase) *Server {
 	})
 
 	route.Route("/event", func(r chi.Router) {
-		r.Post("/pubsub", func(w http.ResponseWriter, r *http.Request) {
-			if err := handlePubSubEvent(uc, r); err != nil {
-				utils.HandleError(r.Context(), "failed handle pubsub event", err)
-				http.Error(w, err.Error(), http.StatusBadRequest)
-				return
-			}
+		r.Route("/pubsub", func(r chi.Router) {
+			r.Post("/cs", func(w http.ResponseWriter, r *http.Request) {
+				if err := handlePubSubEvent(uc, r); err != nil {
+					utils.HandleError(r.Context(), "failed handle pubsub event", err)
+					http.Error(w, err.Error(), http.StatusBadRequest)
+					return
+				}
 
-			w.WriteHeader(http.StatusOK)
-			utils.SafeWrite(w, []byte("OK"))
+				w.WriteHeader(http.StatusOK)
+				utils.SafeWrite(w, []byte("OK"))
+			})
 		})
 	})
 
@@ -66,9 +68,21 @@ func handlePubSubEvent(uc interfaces.UseCase, r *http.Request) error {
 		return goerr.Wrap(err, "failed to unmarshal data").With("data", string(data))
 	}
 
-	if err := uc.LoadData(r.Context(), &model.LoadDataRequest{
-		CSEvent: &event,
-	}); err != nil {
+	obj := event.ToObject()
+	sources, err := uc.ObjectToSources(r.Context(), obj)
+	if err != nil {
+		return goerr.Wrap(err, "failed to convert event to sources").With("event", event)
+	}
+
+	loadReq := make([]*model.LoadRequest, len(sources))
+	for i := range sources {
+		loadReq[i] = &model.LoadRequest{
+			Object: event.ToObject(),
+			Source: *sources[i],
+		}
+	}
+
+	if err := uc.Load(r.Context(), loadReq); err != nil {
 		return goerr.Wrap(err).With("event", event)
 	}
 

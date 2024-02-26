@@ -15,10 +15,10 @@ require (
 	github.com/m-mizutani/clog v0.0.4
 	github.com/m-mizutani/goerr v0.1.11
 	github.com/m-mizutani/gt v0.0.8
-	github.com/m-mizutani/masq v0.1.5
+	github.com/m-mizutani/masq v0.1.7-0.20240226060030-89175da27926
 	github.com/open-policy-agent/opa v0.61.0
 	github.com/urfave/cli/v2 v2.27.1
-	google.golang.org/api v0.166.0
+	google.golang.org/api v0.167.0
 	google.golang.org/protobuf v1.32.0
 )
 
@@ -67,12 +67,12 @@ require (
 	github.com/yashtewari/glob-intersection v0.2.0 // indirect
 	github.com/zeebo/xxh3 v1.0.2 // indirect
 	go.opencensus.io v0.24.0 // indirect
-	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.48.0 // indirect
-	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.48.0 // indirect
-	go.opentelemetry.io/otel v1.23.1 // indirect
-	go.opentelemetry.io/otel/metric v1.23.1 // indirect
-	go.opentelemetry.io/otel/sdk v1.23.1 // indirect
-	go.opentelemetry.io/otel/trace v1.23.1 // indirect
+	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.49.0 // indirect
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.49.0 // indirect
+	go.opentelemetry.io/otel v1.24.0 // indirect
+	go.opentelemetry.io/otel/metric v1.24.0 // indirect
+	go.opentelemetry.io/otel/sdk v1.24.0 // indirect
+	go.opentelemetry.io/otel/trace v1.24.0 // indirect
 	golang.org/x/crypto v0.19.0 // indirect
 	golang.org/x/mod v0.15.0 // indirect
 	golang.org/x/net v0.21.0 // indirect

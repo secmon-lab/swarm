@@ -1,6 +1,13 @@
 package model
 
-import "github.com/m-mizutani/swarm/pkg/domain/types"
+import (
+	"encoding/base64"
+	"encoding/hex"
+	"strconv"
+	"time"
+
+	"github.com/m-mizutani/swarm/pkg/domain/types"
+)
 
 type EventarcDirectEvent struct {
 	Bucket                  types.CSBucket   `json:"bucket"`
@@ -52,4 +59,51 @@ type CloudStorageEvent struct {
 	TimeCreated             string           `json:"timeCreated"`
 	TimeStorageClassUpdated string           `json:"timeStorageClassUpdated"`
 	Updated                 string           `json:"updated"`
+}
+
+func (x CloudStorageEvent) ToObject() Object {
+	var size *int64
+	{
+		raw, err := strconv.ParseInt(x.Size, 10, 64)
+		if err == nil {
+			size = &raw
+		}
+	}
+
+	var createdAt *int64
+	{
+		t, err := time.Parse("2006-01-02T15:04:05.999Z", x.TimeCreated)
+		if err == nil {
+			raw := t.Unix()
+			createdAt = &raw
+		}
+	}
+
+	var digests []Digest
+	{
+		v, err := base64.StdEncoding.DecodeString(x.Md5Hash)
+		if err == nil {
+			digests = append(digests, Digest{
+				Alg:   "md5",
+				Value: hex.EncodeToString(v),
+			})
+		}
+	}
+
+	return Object{
+		CS: &CloudStorageObject{
+			Bucket: x.Bucket,
+			Name:   x.Name,
+		},
+		Size:      size,
+		CreatedAt: createdAt,
+		Digests:   digests,
+
+		Data: x,
+	}
+}
+
+// SwarmMessage is a struct for the event from swarm. It's abstracted event structure for multiple event sources.
+type SwarmMessage struct {
+	Objects []*Object `json:"objects"`
 }

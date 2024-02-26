@@ -1,5 +1,6 @@
 package usecase
 
 var (
-	CloneWithoutNil = cloneWithoutNil
+	CloneWithoutNil     = cloneWithoutNil
+	CreateOrUpdateTable = createOrUpdateTable
 )

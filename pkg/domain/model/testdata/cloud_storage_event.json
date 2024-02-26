@@ -1,0 +1,19 @@
+{
+  "kind": "storage#object",
+  "id": "mztn-sample-bucket/mydir/GA1ZivRbQAAAyXs.jpg/1708130907832889",
+  "selfLink": "https://www.googleapis.com/storage/v1/b/mztn-sample-bucket/o/mydir%2FGA1ZivRbQAAAyXs.jpg",
+  "name": "mydir/GA1ZivRbQAAAyXs.jpg",
+  "bucket": "mztn-sample-bucket",
+  "generation": "1708130907832889",
+  "metageneration": "1",
+  "contentType": "image/jpeg",
+  "timeCreated": "2024-02-17T00:48:27.868Z",
+  "updated": "2024-02-17T00:48:27.868Z",
+  "storageClass": "STANDARD",
+  "timeStorageClassUpdated": "2024-02-17T00:48:27.868Z",
+  "size": "434358",
+  "md5Hash": "65uKQpZiisu9kP8gBl+50Q==",
+  "mediaLink": "https://storage.googleapis.com/download/storage/v1/b/mztn-sample-bucket/o/mydir%2FGA1ZivRbQAAAyXs.jpg?generation=1708130907832889&alt=media",
+  "crc32c": "Ints+A==",
+  "etag": "CLmE97+TsYQDEAE="
+}

@@ -6,26 +6,46 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/m-mizutani/swarm/pkg/domain/interfaces"
+	"github.com/m-mizutani/swarm/pkg/domain/model"
 	"github.com/m-mizutani/swarm/pkg/domain/types"
 )
 
 type Mock struct {
-	MockOpen  func(ctx context.Context, bucket types.CSBucket, object types.CSObjectID) (io.ReadCloser, error)
-	MockAttrs func(ctx context.Context, bucket types.CSBucket, object types.CSObjectID) (*storage.ObjectAttrs, error)
+	MockOpen  func(ctx context.Context, obj model.CloudStorageObject) (io.ReadCloser, error)
+	MockAttrs func(ctx context.Context, obj model.CloudStorageObject) (*storage.ObjectAttrs, error)
+	MockList  func(ctx context.Context, bucket types.CSBucket, query *storage.Query) interfaces.CSObjectIterator
 }
 
-func (x *Mock) Open(ctx context.Context, bucket types.CSBucket, object types.CSObjectID) (io.ReadCloser, error) {
+type MockObjectIterator struct {
+	MockNext func() (*storage.ObjectAttrs, error)
+}
+
+func (x *MockObjectIterator) Next() (*storage.ObjectAttrs, error) {
+	if x.MockNext != nil {
+		return x.MockNext()
+	}
+	return nil, nil
+}
+
+func (x *Mock) Open(ctx context.Context, obj model.CloudStorageObject) (io.ReadCloser, error) {
 	if x.MockOpen != nil {
-		return x.MockOpen(ctx, bucket, object)
+		return x.MockOpen(ctx, obj)
 	}
 	return nil, nil
 }
 
-func (x *Mock) Attrs(ctx context.Context, bucket types.CSBucket, object types.CSObjectID) (*storage.ObjectAttrs, error) {
+func (x *Mock) Attrs(ctx context.Context, obj model.CloudStorageObject) (*storage.ObjectAttrs, error) {
 	if x.MockAttrs != nil {
-		return x.MockAttrs(ctx, bucket, object)
+		return x.MockAttrs(ctx, obj)
 	}
 	return nil, nil
+}
+
+func (x *Mock) List(ctx context.Context, bucket types.CSBucket, query *storage.Query) interfaces.CSObjectIterator {
+	if x.MockList != nil {
+		return x.MockList(ctx, bucket, query)
+	}
+	return nil
 }
 
 var _ interfaces.CloudStorage = &Mock{}

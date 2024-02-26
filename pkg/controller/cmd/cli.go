@@ -36,6 +36,7 @@ func Run(argv []string) error {
 			serveCommand(&rt),
 			retryCommand(&rt),
 			clientCommand(&rt),
+			schemaCommand(&rt),
 		},
 	}
 

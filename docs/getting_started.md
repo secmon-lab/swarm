@@ -30,8 +30,8 @@ This file describes the rules for reading objects stored in Cloud Storage. The f
 package event
 
 src[s] {
-  input.kind == "storage#object"
-  input.bucket == "swarm-test-bucket"
+  input.data.kind == "storage#object"
+  input.cs.bucket == "swarm-test-bucket"
   s := {
     "parser": "json",
     "schema": "my_log",
@@ -88,7 +88,7 @@ If successful, this command will output logs like the following:
         "ObjectSchema": "my_log",
         "DatasetID": "swarm_test",
         "TableID": "my_log_table",
-        "TableSchema": "[{\"name\":\"ID\",\"type\":\"STRING\"},{\"name\":\"IngestID\",\"type\":\"STRING\"},{\"name\":\"Timestamp\",\"type\":\"TIMESTAMP\"},{\"name\":\"InsertedAt\",\"type\":\"TIMESTAMP\"},{\"fields\":[{\"name\":\"user\",\"type\":\"STRING\"},{\"name\":\"action\",\"type\":\"STRING\"},{\"name\":\"event_time\",\"type\":\"FLOAT\"},{\"name\":\"log_id\",\"type\":\"STRING\"},{\"name\":\"remote_ip\",\"type\":\"STRING\"},{\"name\":\"success\",\"type\":\"BOOLEAN\"}],\"name\":\"Data\",\"type\":\"RECORD\"}]",
+        "TableSchema": "[{\"name\":\"ID\",\"type\":\"STRING\"},{\"name\":\"IngestID\",\"type\":\"STRING\"},{\"name\":\"Timestamp\",\"type\":\"TIMESTAMP\"},{\"name\":\"IngestedAt\",\"type\":\"TIMESTAMP\"},{\"fields\":[{\"name\":\"user\",\"type\":\"STRING\"},{\"name\":\"action\",\"type\":\"STRING\"},{\"name\":\"event_time\",\"type\":\"FLOAT\"},{\"name\":\"log_id\",\"type\":\"STRING\"},{\"name\":\"remote_ip\",\"type\":\"STRING\"},{\"name\":\"success\",\"type\":\"BOOLEAN\"}],\"name\":\"Data\",\"type\":\"RECORD\"}]",
         "LogCount": 2,
         "Success": true
       }
