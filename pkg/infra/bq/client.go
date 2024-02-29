@@ -155,13 +155,13 @@ func (x *Client) Insert(ctx context.Context, datasetID types.BQDatasetID, tableI
 
 		raw, err := json.Marshal(v)
 		if err != nil {
-			return goerr.Wrap(err, "failed to Marshal json message")
+			return goerr.Wrap(err, "failed to Marshal json message").With("v", v)
 		}
 
 		// First, json->proto message
 		err = protojson.Unmarshal(raw, message)
 		if err != nil {
-			return goerr.Wrap(err, "failed to Unmarshal json message")
+			return goerr.Wrap(err, "failed to Unmarshal json message").With("raw", string(raw))
 		}
 		// Then, proto message -> bytes.
 		b, err := proto.Marshal(message)
