@@ -13,7 +13,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-func ingestCommand(rt *runtime) *cli.Command {
+func ingestCommand() *cli.Command {
 	var (
 		dryRun   bool
 		output   string

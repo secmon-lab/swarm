@@ -8,7 +8,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-func clientCommand(rt *runtime) *cli.Command {
+func clientCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "client",
 		Aliases: []string{"c"},

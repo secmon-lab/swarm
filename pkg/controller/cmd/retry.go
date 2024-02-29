@@ -2,7 +2,7 @@ package cmd
 
 import "github.com/urfave/cli/v2"
 
-func retryCommand(rt *runtime) *cli.Command {
+func retryCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "retry",
 		Aliases: []string{"r"},

@@ -11,7 +11,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-func schemaCommand(rt *runtime) *cli.Command {
+func schemaCommand() *cli.Command {
 	var (
 		outputDir string
 		bq        config.BigQuery
