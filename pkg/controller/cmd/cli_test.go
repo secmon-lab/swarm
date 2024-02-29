@@ -14,7 +14,6 @@ func TestFlags(t *testing.T) {
 	}{
 		{"ingest"},
 		{"serve"},
-		{"retry"},
 		{"client"},
 	}
 

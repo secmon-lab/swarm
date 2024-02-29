@@ -17,7 +17,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-func serveCommand(rt *runtime) *cli.Command {
+func serveCommand() *cli.Command {
 	var (
 		addr     string
 		bq       config.BigQuery

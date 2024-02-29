@@ -8,12 +8,8 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-type runtime struct {
-}
-
 func Run(argv []string) error {
 	var (
-		rt     runtime
 		logger config.Logger
 	)
 
@@ -32,11 +28,10 @@ func Run(argv []string) error {
 			return nil
 		},
 		Commands: []*cli.Command{
-			ingestCommand(&rt),
-			serveCommand(&rt),
-			retryCommand(&rt),
-			clientCommand(&rt),
-			schemaCommand(&rt),
+			ingestCommand(),
+			serveCommand(),
+			clientCommand(),
+			schemaCommand(),
 		},
 	}
 
