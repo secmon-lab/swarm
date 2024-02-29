@@ -30,7 +30,6 @@ func Run(argv []string) error {
 		Commands: []*cli.Command{
 			ingestCommand(),
 			serveCommand(),
-			retryCommand(),
 			clientCommand(),
 			schemaCommand(),
 		},
