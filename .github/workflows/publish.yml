@@ -32,7 +32,16 @@ jobs:
       - name: Get the tag or commit id
         id: version
         run: |
-          TAG_OR_COMMIT=$(git describe --tags --exact-match 2>/dev/null || echo $GITHUB_SHA)
+          if [[ $GITHUB_REF == refs/tags/* ]]; then
+            # If a tag is present, strip the 'refs/tags/' prefix
+            TAG_OR_COMMIT=$(echo $GITHUB_REF | sed 's/refs\/tags\///')
+            echo "This is a tag: $TAG_OR_COMMIT"
+          else
+            # If no tag is present, use the commit SHA
+            TAG_OR_COMMIT=$(echo $GITHUB_SHA)
+            echo "This is a commit SHA: $TAG_OR_COMMIT"
+          fi
+          # Set the variable for use in other steps
           echo "TAG_OR_COMMIT=$TAG_OR_COMMIT" >> $GITHUB_OUTPUT
         shell: bash
 
