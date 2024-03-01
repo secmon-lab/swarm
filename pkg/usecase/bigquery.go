@@ -59,7 +59,12 @@ func inferSchema[T any](data []T) (bigquery.Schema, error) {
 
 func setupLoadLogTable(ctx context.Context, bq interfaces.BigQuery, meta *model.MetadataConfig) (bigquery.Schema, error) {
 	schema, err := bqs.Infer(&model.LoadLog{
-		Sources: []*model.SourceLog{{}},
+		Sources: []*model.SourceLog{
+			{
+				CS:     &model.CloudStorageObject{},
+				Source: model.Source{},
+			},
+		},
 		Ingests: []*model.IngestLog{{}},
 	})
 	if err != nil {
@@ -68,7 +73,7 @@ func setupLoadLogTable(ctx context.Context, bq interfaces.BigQuery, meta *model.
 	md := &bigquery.TableMetadata{
 		Schema: schema,
 		TimePartitioning: &bigquery.TimePartitioning{
-			Field: "StartedAt",
+			Field: "started_at",
 			Type:  bigquery.MonthPartitioningType,
 		},
 	}
