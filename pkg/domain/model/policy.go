@@ -24,9 +24,9 @@ type EventPolicyOutput struct {
 
 type Source struct {
 	// Source object information
-	Parser   types.ObjectParser   `json:"parser"`
-	Schema   types.ObjectSchema   `json:"schema"`
-	Compress types.ObjectCompress `json:"compress"`
+	Parser   types.ObjectParser   `json:"parser" bigquery:"parser"`
+	Schema   types.ObjectSchema   `json:"schema" bigquery:"schema"`
+	Compress types.ObjectCompress `json:"compress" bigquery:"compress"`
 }
 
 func (x Source) Validate() error {

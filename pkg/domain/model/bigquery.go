@@ -7,48 +7,48 @@ import (
 )
 
 type LoadLog struct {
-	ID         types.RequestID
-	StartedAt  time.Time
-	FinishedAt time.Time
-	Success    bool
-	Sources    []*SourceLog
-	Ingests    []*IngestLog
-	Error      string
+	ID         types.RequestID `json:"id" bigquery:"id"`
+	StartedAt  time.Time       `json:"started_at" bigquery:"started_at"`
+	FinishedAt time.Time       `json:"finished_at" bigquery:"finished_at"`
+	Success    bool            `json:"success" bigquery:"success"`
+	Sources    []*SourceLog    `json:"sources" bigquery:"sources"`
+	Ingests    []*IngestLog    `json:"ingests" bigquery:"ingests"`
+	Error      string          `json:"error" bigquery:"error"`
 }
 
 type SourceLog struct {
-	CS *CloudStorageObject
-	Source
-	RowCount   int
-	StartedAt  time.Time
-	FinishedAt time.Time
-	Success    bool
+	CS         *CloudStorageObject `json:"cs" bigquery:"cs"`
+	Source     Source              `json:"source" bigquery:"source"`
+	RowCount   int                 `json:"row_count" bigquery:"row_count"`
+	StartedAt  time.Time           `json:"started_at" bigquery:"started_at"`
+	FinishedAt time.Time           `json:"finished_at" bigquery:"finished_at"`
+	Success    bool                `json:"success" bigquery:"success"`
 }
 
 type IngestLog struct {
-	ID           types.IngestID
-	StartedAt    time.Time
-	FinishedAt   time.Time
-	ObjectSchema types.ObjectSchema
-	DatasetID    types.BQDatasetID
-	TableID      types.BQTableID
-	TableSchema  string
-	LogCount     int
-	Success      bool
+	ID           types.IngestID     `json:"id" bigquery:"id"`
+	StartedAt    time.Time          `json:"started_at" bigquery:"started_at"`
+	FinishedAt   time.Time          `json:"finished_at" bigquery:"finished_at"`
+	ObjectSchema types.ObjectSchema `json:"object_schema" bigquery:"object_schema"`
+	DatasetID    types.BQDatasetID  `json:"dataset_id" bigquery:"dataset_id"`
+	TableID      types.BQTableID    `json:"table_id" bigquery:"table_id"`
+	TableSchema  string             `json:"table_schema" bigquery:"table_schema"`
+	LogCount     int                `json:"log_count" bigquery:"log_count"`
+	Success      bool               `json:"success" bigquery:"success"`
 }
 
 type LoadLogRaw struct {
 	LoadLog
-	StartedAt  int64
-	FinishedAt int64
-	Ingests    []*IngestLogRaw
-	Sources    []*SourceLogRaw
+	StartedAt  int64           `json:"started_at" bigquery:"started_at"`
+	FinishedAt int64           `json:"finished_at" bigquery:"finished_at"`
+	Ingests    []*IngestLogRaw `json:"ingests" bigquery:"ingests"`
+	Sources    []*SourceLogRaw `json:"sources" bigquery:"sources"`
 }
 
 type SourceLogRaw struct {
 	SourceLog
-	StartedAt  int64
-	FinishedAt int64
+	StartedAt  int64 `json:"started_at" bigquery:"started_at"`
+	FinishedAt int64 `json:"finished_at" bigquery:"finished_at"`
 }
 
 func (x *SourceLog) Raw() *SourceLogRaw {
@@ -61,8 +61,8 @@ func (x *SourceLog) Raw() *SourceLogRaw {
 
 type IngestLogRaw struct {
 	IngestLog
-	StartedAt  int64
-	FinishedAt int64
+	StartedAt  int64 `json:"started_at" bigquery:"started_at"`
+	FinishedAt int64 `json:"finished_at" bigquery:"finished_at"`
 }
 
 func (x *IngestLog) Raw() *IngestLogRaw {
@@ -96,11 +96,11 @@ func (x *LoadLog) Raw() *LoadLogRaw {
 
 type LogRecord struct {
 	// NOTICE: Must update LogRecordRaw also when adding new fields to LogRecord
-	ID         types.LogID
-	IngestID   types.IngestID
-	Timestamp  time.Time
-	IngestedAt time.Time
-	Data       any
+	ID         types.LogID    `json:"id" bigquery:"id"`
+	IngestID   types.IngestID `json:"ingest_id" bigquery:"ingest_id"`
+	Timestamp  time.Time      `json:"timestamp" bigquery:"timestamp"`
+	IngestedAt time.Time      `json:"ingested_at" bigquery:"ingested_at"`
+	Data       any            `json:"data" bigquery:"data"`
 }
 
 func (x LogRecord) Raw() *LogRecordRaw {
@@ -114,8 +114,8 @@ func (x LogRecord) Raw() *LogRecordRaw {
 // LogRecordRaw is replaced LogRecord with Timestamp from time.Time to int64. BigQuery Storage Write API requires converting data to protocol buffer. But adapt.StorageSchemaToProto2Descriptor is not supported for time.Time. It uses int64 for timestamp instead of time.Time. So, LogRecordRaw is used for only insertion by BigQuery Storage Write API.
 type LogRecordRaw struct {
 	LogRecord
-	Timestamp  int64
-	IngestedAt int64
+	Timestamp  int64 `json:"timestamp" bigquery:"timestamp"`
+	IngestedAt int64 `json:"ingested_at" bigquery:"ingested_at"`
 }
 
 type LogRecordSet map[BigQueryDest][]*LogRecord

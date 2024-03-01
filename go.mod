@@ -11,7 +11,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/googleapis/gax-go/v2 v2.12.1
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/m-mizutani/bqs v0.0.2-0.20240220024557-5c1b9395c874
+	github.com/m-mizutani/bqs v0.0.3
 	github.com/m-mizutani/clog v0.0.4
 	github.com/m-mizutani/goerr v0.1.11
 	github.com/m-mizutani/gt v0.0.8

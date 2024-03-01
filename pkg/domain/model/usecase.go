@@ -17,23 +17,23 @@ type LoadRequest struct {
 }
 
 type Object struct {
-	CS        *CloudStorageObject `json:"cs,omitempty"`
-	Size      *int64              `json:"size,omitempty"`
-	CreatedAt *int64              `json:"created_at"`
-	Digests   []Digest            `json:"digests"`
+	CS        *CloudStorageObject `json:"cs,omitempty" bigquery:"cs"`
+	Size      *int64              `json:"size,omitempty" bigquery:"size"`
+	CreatedAt *int64              `json:"created_at" bigquery:"created_at"`
+	Digests   []Digest            `json:"digests" bigquery:"digests"`
 
 	// Data is original notification data, such as CloudStorageEvent
-	Data any `json:"data"`
+	Data any `json:"data" bigquery:"-"`
 }
 
 type CloudStorageObject struct {
-	Bucket types.CSBucket   `json:"bucket"`
-	Name   types.CSObjectID `json:"name"`
+	Bucket types.CSBucket   `json:"bucket" bigquery:"bucket"`
+	Name   types.CSObjectID `json:"name" bigquery:"name"`
 }
 
 type Digest struct {
-	Alg   string `json:"alg"`
-	Value string `json:"value"`
+	Alg   string `json:"alg" bigquery:"alg"`
+	Value string `json:"value" bigquery:"value"`
 }
 
 func NewObjectFromCloudStorageAttrs(attrs *storage.ObjectAttrs) Object {
