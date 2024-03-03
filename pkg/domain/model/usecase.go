@@ -2,6 +2,7 @@ package model
 
 import (
 	"encoding/hex"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/m-mizutani/swarm/pkg/domain/types"
@@ -14,6 +15,16 @@ type LoadDataRequest struct {
 type LoadRequest struct {
 	Source Source
 	Object Object
+}
+
+type EnqueueRequest struct {
+	URL types.ObjectURL
+}
+
+type EnqueueResponse struct {
+	Elapsed time.Duration
+	Count   int64
+	Size    int64
 }
 
 type Object struct {

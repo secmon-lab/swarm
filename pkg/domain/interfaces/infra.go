@@ -22,6 +22,10 @@ type BigQuery interface {
 	CreateTable(ctx context.Context, dataset types.BQDatasetID, table types.BQTableID, md *bigquery.TableMetadata) error
 }
 
+type PubSub interface {
+	Publish(ctx context.Context, data []byte) (types.PubSubMessageID, error)
+}
+
 type CSObjectIterator interface {
 	Next() (*storage.ObjectAttrs, error)
 }
