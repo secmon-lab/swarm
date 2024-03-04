@@ -21,7 +21,7 @@ func (x *Dumper) Publish(ctx context.Context, data []byte) (types.PubSubMessageI
 	id := types.PubSubMessageID(uuid.NewString())
 
 	path := filepath.Clean(filepath.Join(x.outDir, string(id)+".msg"))
-	if err := os.WriteFile(path, data, 0644); err != nil {
+	if err := os.WriteFile(path, data, 0600); err != nil {
 		return "", err
 	}
 
