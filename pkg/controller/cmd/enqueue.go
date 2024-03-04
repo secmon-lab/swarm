@@ -60,10 +60,14 @@ func enqueueCommand() *cli.Command {
 			)
 			uc := usecase.New(clients)
 
-			req := &model.EnqueueRequest{
-				URL: types.ObjectURL(ctx.Args().First()),
+			var urls []types.ObjectURL
+			for _, arg := range ctx.Args().Slice() {
+				urls = append(urls, types.ObjectURL(arg))
 			}
 
+			req := &model.EnqueueRequest{
+				URLs: urls,
+			}
 			resp, err := uc.Enqueue(ctx.Context, req)
 			if err != nil {
 				return err

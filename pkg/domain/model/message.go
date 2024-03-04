@@ -107,13 +107,3 @@ func (x CloudStorageEvent) ToObject() Object {
 type SwarmMessage struct {
 	Objects []*Object `json:"objects"`
 }
-
-type APIEnqueueInput struct {
-	URL types.ObjectURL `json:"url"`
-}
-
-func (x APIEnqueueInput) ToRequest() EnqueueRequest {
-	return EnqueueRequest{
-		URL: x.URL,
-	}
-}

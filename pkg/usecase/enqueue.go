@@ -24,41 +24,43 @@ func (x *UseCase) Enqueue(ctx context.Context, req *model.EnqueueRequest) (*mode
 		totalSize  int64
 	)
 
-	bucket, objPrefix, err := req.URL.ParseAsCloudStorage()
-	if err != nil {
-		return nil, err
-	}
-
-	query := &storage.Query{
-		Prefix: objPrefix.String(),
-	}
-
 	var objects []*model.Object
-	it := x.clients.CloudStorage().List(ctx, bucket, query)
-	for {
-		attrs, err := it.Next()
+	for _, url := range req.URLs {
+		bucket, objPrefix, err := url.ParseAsCloudStorage()
 		if err != nil {
-			if err == iterator.Done {
-				break
+			return nil, err
+		}
+
+		query := &storage.Query{
+			Prefix: objPrefix.String(),
+		}
+
+		it := x.clients.CloudStorage().List(ctx, bucket, query)
+		for {
+			attrs, err := it.Next()
+			if err != nil {
+				if err == iterator.Done {
+					break
+				}
+				return nil, goerr.Wrap(err, "failed to list objects")
 			}
-			return nil, goerr.Wrap(err, "failed to list objects")
-		}
 
-		obj := model.NewObjectFromCloudStorageAttrs(attrs)
-		if obj.Size != nil {
-			totalSize += *obj.Size
-		}
-		totalCount++
-
-		if sumObjectSize(&obj, objects...) > enqueueObjectSizeLimit ||
-			len(objects) >= enqueueObjectCountLimit {
-			if err := enqueueObjects(ctx, x.clients.PubSub(), objects); err != nil {
-				return nil, err
+			obj := model.NewObjectFromCloudStorageAttrs(attrs)
+			if obj.Size != nil {
+				totalSize += *obj.Size
 			}
-			objects = nil
-		}
+			totalCount++
 
-		objects = append(objects, &obj)
+			if sumObjectSize(&obj, objects...) > enqueueObjectSizeLimit ||
+				len(objects) >= enqueueObjectCountLimit {
+				if err := enqueueObjects(ctx, x.clients.PubSub(), objects); err != nil {
+					return nil, err
+				}
+				objects = nil
+			}
+
+			objects = append(objects, &obj)
+		}
 	}
 
 	if len(objects) > 0 {

@@ -18,7 +18,7 @@ type LoadRequest struct {
 }
 
 type EnqueueRequest struct {
-	URL types.ObjectURL
+	URLs []types.ObjectURL
 }
 
 type EnqueueResponse struct {
