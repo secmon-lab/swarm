@@ -37,6 +37,11 @@ func NewLogID(bucket CSBucket, objID CSObjectID, idx int) LogID {
 
 // Google Cloud Platform
 type GoogleProjectID string
+type PubSubTopicID string
+type PubSubMessageID string
+
+func (x GoogleProjectID) String() string { return string(x) }
+func (x PubSubTopicID) String() string   { return string(x) }
 
 type BQDatasetID string
 type BQTableID string
@@ -85,6 +90,30 @@ func (x CSUrl) Parse() (CSBucket, CSObjectID, error) {
 	object := CSObjectID(strings.Join(parts[3:], "/"))
 
 	return bucket, object, nil
+}
+
+type ObjectURL string
+type ObjectType string
+
+const (
+	UnknownObject      ObjectType = ""
+	CloudStorageObject ObjectType = "cs"
+)
+
+func (x ObjectURL) Type() ObjectType {
+	if strings.HasPrefix(string(x), "gs://") {
+		return CloudStorageObject
+	}
+
+	return UnknownObject
+}
+
+func (x ObjectURL) ParseAsCloudStorage() (CSBucket, CSObjectID, error) {
+	if x.Type() != CloudStorageObject {
+		return "", "", goerr.Wrap(ErrInvalidOption, "ObjectURL is not CloudStorage").With("url", x)
+	}
+
+	return CSUrl(x).Parse()
 }
 
 // Object information

@@ -10,6 +10,7 @@ type Mock struct {
 	MockLoadData        func(ctx context.Context, req []*model.LoadRequest) error
 	MockAuthorize       func(ctx context.Context, input *model.AuthPolicyInput) error
 	MockObjectToSources func(ctx context.Context, obj model.Object) ([]*model.Source, error)
+	MockEnqueue         func(ctx context.Context, req *model.EnqueueRequest) (*model.EnqueueResponse, error)
 }
 
 func (x *Mock) Load(ctx context.Context, req []*model.LoadRequest) error {
@@ -31,4 +32,8 @@ func (x Mock) ObjectToSources(ctx context.Context, obj model.Object) ([]*model.S
 		return x.MockObjectToSources(ctx, obj)
 	}
 	return nil, nil
+}
+
+func (x Mock) Enqueue(ctx context.Context, req *model.EnqueueRequest) (*model.EnqueueResponse, error) {
+	return x.MockEnqueue(ctx, req)
 }

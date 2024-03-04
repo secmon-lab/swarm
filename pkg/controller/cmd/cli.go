@@ -32,6 +32,7 @@ func Run(argv []string) error {
 			serveCommand(),
 			clientCommand(),
 			schemaCommand(),
+			enqueueCommand(),
 		},
 	}
 

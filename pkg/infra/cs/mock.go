@@ -8,6 +8,7 @@ import (
 	"github.com/m-mizutani/swarm/pkg/domain/interfaces"
 	"github.com/m-mizutani/swarm/pkg/domain/model"
 	"github.com/m-mizutani/swarm/pkg/domain/types"
+	"google.golang.org/api/iterator"
 )
 
 type Mock struct {
@@ -18,13 +19,20 @@ type Mock struct {
 
 type MockObjectIterator struct {
 	MockNext func() (*storage.ObjectAttrs, error)
+	Attrs    []*storage.ObjectAttrs
 }
 
 func (x *MockObjectIterator) Next() (*storage.ObjectAttrs, error) {
 	if x.MockNext != nil {
 		return x.MockNext()
 	}
-	return nil, nil
+
+	if len(x.Attrs) == 0 {
+		return nil, iterator.Done
+	}
+	resp := x.Attrs[0]
+	x.Attrs = x.Attrs[1:]
+	return resp, nil
 }
 
 func (x *Mock) Open(ctx context.Context, obj model.CloudStorageObject) (io.ReadCloser, error) {
@@ -49,14 +57,3 @@ func (x *Mock) List(ctx context.Context, bucket types.CSBucket, query *storage.Q
 }
 
 var _ interfaces.CloudStorage = &Mock{}
-
-type MockIterator struct {
-	MockNext func(dst interface{}) error
-}
-
-func (x *MockIterator) Next(dst interface{}) error {
-	if x.MockNext != nil {
-		return x.MockNext(dst)
-	}
-	return nil
-}

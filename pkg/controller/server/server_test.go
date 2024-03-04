@@ -18,7 +18,7 @@ import (
 //go:embed testdata/http/pubsub.json
 var pubsubBody []byte
 
-func TestEventRequest(t *testing.T) {
+func TestPubSubCloudStorage(t *testing.T) {
 	testCases := map[string]struct {
 		method     string
 		path       string
@@ -27,7 +27,7 @@ func TestEventRequest(t *testing.T) {
 		calledLoad int
 		calledE2S  int
 	}{
-		"valid pubsub": {
+		"valid pubsub cloud storage": {
 			method:     http.MethodPost,
 			path:       "/event/pubsub/cs",
 			body:       pubsubBody,
@@ -100,4 +100,46 @@ func TestEventRequest(t *testing.T) {
 			gt.Equal(t, tc.calledE2S, calledE2S)
 		})
 	}
+}
+
+//go:embed testdata/http/pubsub_swarm.json
+var pubsubBodySwarm []byte
+
+func TestPubSubSwarmMessage(t *testing.T) {
+	var calledLoad, calledE2S int
+	mock := &usecase.Mock{
+		MockLoadData: func(ctx context.Context, req []*model.LoadRequest) error {
+			gt.A(t, req).Must().Length(6)
+			gt.Equal(t, req[0].Source.Parser, types.JSONParser)
+			gt.Equal(t, req[0].Source.Schema, "cloudtrail")
+			gt.Equal(t, req[0].Source.Compress, types.NoCompress)
+			gt.Equal(t, req[0].Object.CS.Bucket, "mztn-sample-bucket")
+			gt.String(t, string(req[0].Object.CS.Name)).HasSuffix(".json.log.gz")
+			calledLoad++
+			return nil
+		},
+		MockObjectToSources: func(ctx context.Context, input model.Object) ([]*model.Source, error) {
+			calledE2S++
+			gt.Equal(t, input.CS.Bucket, "mztn-sample-bucket")
+			gt.String(t, string(input.CS.Name)).HasSuffix(".json.log.gz")
+
+			return []*model.Source{
+				{
+					Parser:   types.JSONParser,
+					Schema:   "cloudtrail",
+					Compress: types.NoCompress,
+				},
+			}, nil
+		},
+	}
+
+	srv := server.New(mock)
+	r := httptest.NewRequest("POST", "/event/pubsub/swarm", bytes.NewReader(pubsubBodySwarm))
+	w := httptest.NewRecorder()
+	srv.ServeHTTP(w, r)
+
+	gt.Equal(t, http.StatusOK, w.Code)
+	gt.Equal(t, 1, calledLoad)
+	gt.Equal(t, 6, calledE2S)
+
 }
