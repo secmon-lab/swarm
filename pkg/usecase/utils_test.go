@@ -33,6 +33,23 @@ func TestClone(t *testing.T) {
 				"color":  "blue",
 			},
 		},
+		"empty slice": {
+			src: map[string]interface{}{
+				"array": []interface{}{},
+				"color": "blue",
+			},
+			expect: map[string]interface{}{
+				"color": "blue",
+			},
+		},
+		"array with empty": {
+			src:    [2]any{nil, "blue"},
+			expect: [2]any{nil, "blue"},
+		},
+		"slice with empty": {
+			src:    []any{nil, "blue"},
+			expect: []any{"blue"},
+		},
 	}
 
 	for name, tc := range testCases {

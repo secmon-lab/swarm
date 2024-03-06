@@ -12,19 +12,20 @@ import (
 )
 
 func cloneWithoutNil(src interface{}) interface{} {
-	return clone("", reflect.ValueOf(src)).Interface()
+	resp, _ := clone("", reflect.ValueOf(src))
+	return resp.Interface()
 }
 
-func clone(fieldName string, src reflect.Value) reflect.Value {
+func clone(fieldName string, src reflect.Value) (reflect.Value, bool) {
 	if src.Kind() == reflect.Ptr && src.IsNil() {
-		return reflect.New(src.Type()).Elem()
+		return reflect.New(src.Type()).Elem(), true
 	}
 
 	switch src.Kind() {
 	case reflect.String:
 		dst := reflect.New(src.Type())
 		dst.Elem().SetString(src.String())
-		return dst.Elem()
+		return dst.Elem(), true
 
 	case reflect.Struct:
 		dst := reflect.New(src.Type())
@@ -62,10 +63,11 @@ func clone(fieldName string, src reflect.Value) reflect.Value {
 				srcValue = reflect.NewAt(srcValue.Type(), unsafe.Pointer(srcValue.UnsafeAddr())).Elem()
 			}
 
-			copied := clone(f.Name, srcValue)
-			dstValue.Set(copied)
+			if copied, ok := clone(f.Name, srcValue); ok {
+				dstValue.Set(copied)
+			}
 		}
-		return dst.Elem()
+		return dst.Elem(), true
 
 	case reflect.Map:
 		dst := reflect.MakeMap(src.Type())
@@ -76,41 +78,70 @@ func clone(fieldName string, src reflect.Value) reflect.Value {
 			if mValue.IsNil() {
 				continue
 			}
-			dst.SetMapIndex(keys[i], clone(fieldName, mValue))
+			if v, ok := clone(fieldName, mValue); ok {
+				dst.SetMapIndex(keys[i], v)
+			}
 		}
-		return dst
+		return dst, true
 
 	case reflect.Slice:
-		dst := reflect.MakeSlice(src.Type(), src.Len(), src.Cap())
+		var arr []reflect.Value
 		for i := 0; i < src.Len(); i++ {
-			dst.Index(i).Set(clone(fieldName, src.Index(i)))
+			if v, ok := clone(fieldName, src.Index(i)); ok {
+				arr = append(arr, v)
+			}
 		}
-		return dst
+
+		if len(arr) == 0 {
+			return src, false
+		}
+		dst := reflect.MakeSlice(src.Type(), len(arr), len(arr))
+		for i, v := range arr {
+			dst.Index(i).Set(v)
+		}
+
+		return dst, true
 
 	case reflect.Array:
 		if src.Len() == 0 {
-			return src // can not access to src.Index(0)
+			return src, false
 		}
 
 		dst := reflect.New(src.Type()).Elem()
+		var count int
 		for i := 0; i < src.Len(); i++ {
-			dst.Index(i).Set(clone(fieldName, src.Index(i)))
+			v, ok := clone(fieldName, src.Index(i))
+			if ok {
+				count++
+				dst.Index(i).Set(v)
+			}
 		}
-		return dst
 
-	case reflect.Ptr:
+		if count == 0 {
+			return src, false
+		}
+		return dst, true
+
+	case reflect.Ptr, reflect.UnsafePointer:
 		dst := reflect.New(src.Elem().Type())
-		copied := clone(fieldName, src.Elem())
+		copied, ok := clone(fieldName, src.Elem())
+		if !ok {
+			return src, false
+		}
 		dst.Elem().Set(copied)
-		return dst
+		return dst, true
 
 	case reflect.Interface:
 		return clone(fieldName, src.Elem())
 
+	case reflect.Invalid:
+		return src, false
+
 	default:
-		dst := reflect.New(src.Type())
+		typ := src.Type()
+		dst := reflect.New(typ)
 		dst.Elem().Set(src)
-		return dst.Elem()
+		return dst.Elem(), true
 	}
 }
 
