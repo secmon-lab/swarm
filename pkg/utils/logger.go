@@ -3,10 +3,14 @@ package utils
 import (
 	"log/slog"
 	"sync"
+
+	"github.com/m-mizutani/swarm/pkg/domain/types"
 )
 
 var (
-	logger      = slog.Default()
+	logger = slog.Default().With(slog.Group("ctx",
+		slog.String("app_version", types.AppVersion),
+	))
 	loggerMutex sync.Mutex
 )
 
@@ -17,7 +21,9 @@ func Logger() *slog.Logger {
 func SetLogger(l *slog.Logger) {
 	loggerMutex.Lock()
 	defer loggerMutex.Unlock()
-	logger = l
+	logger = l.With(slog.Group("ctx",
+		slog.String("app_version", types.AppVersion),
+	))
 }
 
 func ErrLog(err error) slog.Attr {

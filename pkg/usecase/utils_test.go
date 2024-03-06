@@ -1,6 +1,7 @@
 package usecase_test
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/m-mizutani/gt"
@@ -58,4 +59,18 @@ func TestClone(t *testing.T) {
 			gt.Equal(t, dst, tc.expect)
 		})
 	}
+}
+
+func TestCloneFromJson(t *testing.T) {
+	raw := `{
+		"str": "blue",
+		"field": null,
+		"empty": []
+	}`
+
+	var src any
+	gt.NoError(t, json.Unmarshal([]byte(raw), &src))
+	dst := usecase.CloneWithoutNil(src)
+	m := gt.Cast[map[string]any](t, dst)
+	gt.M(t, m).HaveKey("str").NotHaveKey("field").NotHaveKey("empty")
 }
