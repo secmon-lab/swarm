@@ -12,16 +12,12 @@ import (
 	"google.golang.org/api/iterator"
 )
 
-const (
-	enqueueObjectCountLimit = 1024
-	enqueueObjectSizeLimit  = 4 * 1024 * 1024 // 4MB
-)
-
 func (x *UseCase) Enqueue(ctx context.Context, req *model.EnqueueRequest) (*model.EnqueueResponse, error) {
 	startedAt := time.Now()
 	var (
 		totalCount int64
 		totalSize  int64
+		sizeLimit  int64 = int64(x.enqueueSizeLimit * 1024 * 1024) // MiB
 	)
 
 	var objects []*model.Object
@@ -51,8 +47,8 @@ func (x *UseCase) Enqueue(ctx context.Context, req *model.EnqueueRequest) (*mode
 			}
 			totalCount++
 
-			if sumObjectSize(&obj, objects...) > enqueueObjectSizeLimit ||
-				len(objects) >= enqueueObjectCountLimit {
+			if sumObjectSize(&obj, objects...) > int64(sizeLimit) ||
+				len(objects) >= x.enqueueCountLimit {
 				if err := enqueueObjects(ctx, x.clients.PubSub(), objects); err != nil {
 					return nil, err
 				}
