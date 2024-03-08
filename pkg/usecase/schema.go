@@ -65,7 +65,7 @@ func (x *UseCase) applyInferredSchema(ctx context.Context, objects []model.Objec
 
 	logger := utils.CtxLogger(ctx)
 	logger.Info("importing objects", "source.size", len(requests))
-	records, _, err := importLogRecords(ctx, x.clients, requests)
+	records, _, err := importLogRecords(ctx, x.clients, requests, x.readObjectConcurrency)
 	if err != nil {
 		return err
 	}

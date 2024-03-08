@@ -75,7 +75,7 @@ func (x *UseCase) Load(ctx context.Context, requests []*model.LoadRequest) error
 		utils.CtxLogger(ctx).Info("request handled", "req", requests, "proc.log", loadLog)
 	}()
 
-	logRecords, srcLogs, err := importLogRecords(ctx, x.clients, requests)
+	logRecords, srcLogs, err := importLogRecords(ctx, x.clients, requests, x.readObjectConcurrency)
 	loadLog.Sources = srcLogs
 	if err != nil {
 		loadLog.Error = err.Error()
@@ -100,11 +100,7 @@ type importSourceResponse struct {
 	log    *model.SourceLog
 }
 
-const (
-	importLogRecordsConcurrency = 256
-)
-
-func importLogRecords(ctx context.Context, clients *infra.Clients, requests []*model.LoadRequest) (model.LogRecordSet, []*model.SourceLog, *multierror.Error) {
+func importLogRecords(ctx context.Context, clients *infra.Clients, requests []*model.LoadRequest, concurrency int) (model.LogRecordSet, []*model.SourceLog, *multierror.Error) {
 	var logs []*model.SourceLog
 	dstMap := model.LogRecordSet{}
 
@@ -113,7 +109,7 @@ func importLogRecords(ctx context.Context, clients *infra.Clients, requests []*m
 	respCh := make(chan *importSourceResponse, len(requests))
 	errCh := make(chan error, len(requests))
 
-	for i := 0; i < importLogRecordsConcurrency; i++ {
+	for i := 0; i < concurrency; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
