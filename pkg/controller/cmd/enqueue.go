@@ -17,8 +17,10 @@ import (
 
 func enqueueCommand() *cli.Command {
 	var (
-		pubsubCfg config.PubSub
-		outDir    string
+		pubsubCfg  config.PubSub
+		countLimit int
+		sizeLimit  int
+		outDir     string
 	)
 
 	return &cli.Command{
@@ -32,6 +34,20 @@ func enqueueCommand() *cli.Command {
 				Aliases:     []string{"o"},
 				Usage:       "Output directory path",
 				Destination: &outDir,
+			},
+			&cli.IntFlag{
+				Name:        "count-limit",
+				EnvVars:     []string{"SWARM_ENQUEUE_COUNT_LIMIT"},
+				Usage:       "Limit of object count to enqueue",
+				Destination: &countLimit,
+				Value:       128,
+			},
+			&cli.IntFlag{
+				Name:        "size-limit",
+				EnvVars:     []string{"SWARM_ENQUEUE_SIZE_LIMIT"},
+				Usage:       "Limit of object size to enqueue (MiB)",
+				Destination: &sizeLimit,
+				Value:       4,
 			},
 		}, pubsubCfg.Flags()),
 		Action: func(ctx *cli.Context) error {
