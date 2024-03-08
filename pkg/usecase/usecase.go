@@ -8,11 +8,18 @@ import (
 type UseCase struct {
 	clients  *infra.Clients
 	metadata *model.MetadataConfig
+
+	readObjectConcurrency int
 }
+
+const (
+	defaultReadObjectConcurrency = 32
+)
 
 func New(clients *infra.Clients, options ...Option) *UseCase {
 	uc := &UseCase{
-		clients: clients,
+		clients:               clients,
+		readObjectConcurrency: defaultReadObjectConcurrency,
 	}
 
 	for _, option := range options {
@@ -27,5 +34,14 @@ type Option func(*UseCase)
 func WithMetadata(metadata *model.MetadataConfig) Option {
 	return func(uc *UseCase) {
 		uc.metadata = metadata
+	}
+}
+
+func WithReadObjectConcurrency(n int) Option {
+	if n < 1 {
+		n = 1
+	}
+	return func(uc *UseCase) {
+		uc.readObjectConcurrency = n
 	}
 }

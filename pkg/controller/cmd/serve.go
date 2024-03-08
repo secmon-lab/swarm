@@ -19,11 +19,12 @@ import (
 
 func serveCommand() *cli.Command {
 	var (
-		addr     string
-		bq       config.BigQuery
-		policy   config.Policy
-		metadata config.Metadata
-		sentry   config.Sentry
+		addr        string
+		concurrency int
+		bq          config.BigQuery
+		policy      config.Policy
+		metadata    config.Metadata
+		sentry      config.Sentry
 	)
 
 	return &cli.Command{
@@ -37,6 +38,13 @@ func serveCommand() *cli.Command {
 				Usage:       "Address to listen",
 				Destination: &addr,
 				Value:       "localhost:8080",
+			},
+			&cli.IntFlag{
+				Name:        "read-concurrency",
+				EnvVars:     []string{"SWARM_READ_CONCURRENCY"},
+				Usage:       "Number of concurrent read from CloudStorage",
+				Destination: &concurrency,
+				Value:       32,
 			},
 		}, bq.Flags(), policy.Flags(), metadata.Flags(), sentry.Flags()),
 		Action: func(c *cli.Context) error {
@@ -66,12 +74,18 @@ func serveCommand() *cli.Command {
 			}
 			infraOptions = append(infraOptions, infra.WithCloudStorage(csClient))
 
-			meta, err := metadata.Configure()
-			if err != nil {
+			var ucOptions []usecase.Option
+			if meta, err := metadata.Configure(); err != nil {
 				return goerr.Wrap(err, "failed to configure metadata")
+			} else if meta != nil {
+				ucOptions = append(ucOptions, usecase.WithMetadata(meta))
 			}
 
-			uc := usecase.New(infra.New(infraOptions...), usecase.WithMetadata(meta))
+			if concurrency > 0 {
+				ucOptions = append(ucOptions, usecase.WithReadObjectConcurrency(concurrency))
+			}
+
+			uc := usecase.New(infra.New(infraOptions...), ucOptions...)
 			srv := server.New(uc)
 
 			// Listen srv on addr
