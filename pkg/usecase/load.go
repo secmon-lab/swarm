@@ -240,7 +240,7 @@ func downloadCloudStorageObject(ctx context.Context, csClient interfaces.CloudSt
 	return records, nil
 }
 
-const maxIngestLogCount = 1000
+const maxIngestLogCount = 256
 
 func ingestRecords(ctx context.Context, bq interfaces.BigQuery, bqDst model.BigQueryDest, records []*model.LogRecord) (*model.IngestLog, error) {
 	ingestID, ctx := utils.CtxIngestID(ctx)

@@ -149,11 +149,9 @@ func TestIngestRecordBigNum(t *testing.T) {
 	resp := gt.R1(usecase.IngestRecords(ctx, bqMock, dst, records)).NoError(t)
 	gt.True(t, resp.Success)
 
-	gt.A(t, bqMock.Inserted).Length(2).
-		At(0, func(t testing.TB, v bq.MockInsertedData) {
-			gt.A(t, v.Data).Length(1000)
-		}).
-		At(1, func(t testing.TB, v bq.MockInsertedData) {
-			gt.A(t, v.Data).Length(1)
-		})
+	gt.A(t, bqMock.Inserted).Length(4)
+	gt.A(t, bqMock.Inserted[0].Data).Length(256)
+	gt.A(t, bqMock.Inserted[1].Data).Length(256)
+	gt.A(t, bqMock.Inserted[2].Data).Length(256)
+	gt.A(t, bqMock.Inserted[3].Data).Length(233)
 }
