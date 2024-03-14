@@ -2,8 +2,8 @@ package types
 
 import (
 	"crypto/md5"
-	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"strings"
 
 	"github.com/google/uuid"
@@ -23,16 +23,13 @@ type LogID string
 
 func NewIngestID() IngestID { return IngestID(uuid.NewString()) }
 
-func NewLogID(bucket CSBucket, objID CSObjectID, idx int) LogID {
+func NewLogID(data any) (LogID, error) {
 	h := md5.New()
-	h.Write([]byte(bucket))
-	h.Write([]byte{0x00})
-	h.Write([]byte(objID))
-	bytes := make([]byte, 4)
-	binary.BigEndian.PutUint32(bytes, uint32(idx))
-	h.Write([]byte(bytes))
+	if err := json.NewEncoder(h).Encode(data); err != nil {
+		return "", goerr.Wrap(err, "failed to encode data for new ID").With("data", data)
+	}
 
-	return LogID(hex.EncodeToString(h.Sum(nil)))
+	return LogID(hex.EncodeToString(h.Sum(nil))), nil
 }
 
 // Google Cloud Platform

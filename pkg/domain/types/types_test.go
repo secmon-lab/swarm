@@ -1,13 +1,18 @@
-package types
+package types_test
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/m-mizutani/gt"
+	"github.com/m-mizutani/swarm/pkg/domain/types"
+)
 
 func TestCSUrl_Parse(t *testing.T) {
 	tests := []struct {
 		name     string
-		url      CSUrl
-		expected CSBucket
-		object   CSObjectID
+		url      types.CSUrl
+		expected types.CSBucket
+		object   types.CSObjectID
 		wantErr  bool
 	}{
 		{
@@ -82,47 +87,34 @@ func TestCSUrl_Parse(t *testing.T) {
 	}
 }
 
-func TestNewLogID(t *testing.T) {
-	baseID := NewLogID("bucket1", "object1", 0)
-
+func TestNewLogIDIdempotent(t *testing.T) {
 	testCases := map[string]struct {
-		bucket CSBucket
-		objID  CSObjectID
-		idx    int
-		match  bool
+		data any
 	}{
-		"test case 1": {
-			bucket: "bucket1",
-			objID:  "object1",
-			idx:    0,
-			match:  true,
+		"map data": {
+			data: map[string]string{
+				"color":  "red",
+				"number": "1",
+			},
 		},
-		"test case 2": {
-			bucket: "bucket2",
-			objID:  "object2",
-			idx:    1,
-			match:  false,
+		"string data": {
+			data: "hello",
 		},
-		"test case 3": {
-			bucket: "bucket1",
-			objID:  "object1",
-			idx:    1,
-			match:  false,
+		"array data": {
+			data: []string{"a", "b", "c"},
 		},
-		"test case 4": {
-			bucket: "bucket2",
-			objID:  "object1",
-			idx:    0,
-			match:  false,
-		},
-		// Add more test cases as needed
 	}
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			result := NewLogID(tc.bucket, tc.objID, tc.idx)
-			if tc.match && result != baseID {
-				t.Errorf("unexpected result")
+			var ids []types.LogID
+			for i := 0; i < 100; i++ {
+				result := gt.R1(types.NewLogID(tc.data)).NoError(t)
+				ids = append(ids, result)
+			}
+
+			for i := 1; i < len(ids); i++ {
+				gt.V(t, ids[i]).Equal(ids[0])
 			}
 		})
 	}

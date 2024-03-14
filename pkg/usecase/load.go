@@ -177,13 +177,19 @@ func importSource(ctx context.Context, clients *infra.Clients, req *model.LoadRe
 			continue
 		}
 
-		for idx, log := range output.Logs {
+		for _, log := range output.Logs {
 			if err := log.Validate(); err != nil {
 				return result, err
 			}
+
+			newData := cloneWithoutNil(log.Data)
+
 			if log.ID == "" {
 				// TODO: Fix this when adding another object storage service, such as S3
-				log.ID = types.NewLogID(req.Object.CS.Bucket, req.Object.CS.Name, idx)
+				log.ID, err = types.NewLogID(newData)
+				if err != nil {
+					return result, err
+				}
 			}
 
 			tsNano := math.Mod(log.Timestamp, 1.0) * 1000 * 1000 * 1000
@@ -193,7 +199,7 @@ func importSource(ctx context.Context, clients *infra.Clients, req *model.LoadRe
 				IngestedAt: time.Now(),
 
 				// If there is a field that has nil value in the log.Data, the field can not be estimated field type by bqs.Infer. It will cause an error when inserting data to BigQuery. So, remove nil value from log.Data.
-				Data: cloneWithoutNil(log.Data),
+				Data: newData,
 			}
 
 			result.dstMap[log.BigQueryDest] = append(result.dstMap[log.BigQueryDest], record)
