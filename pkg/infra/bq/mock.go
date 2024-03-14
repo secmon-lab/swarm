@@ -63,7 +63,7 @@ func NewGeneralMock() *generalMock {
 }
 
 type generalMock struct {
-	Inserted []insertedData
+	Inserted []MockInsertedData
 	Metadata bigquery.TableMetadata
 }
 
@@ -79,7 +79,7 @@ func (x *generalMock) GetMetadata(ctx context.Context, dataset types.BQDatasetID
 
 // Insert implements interfaces.BigQuery.
 func (x *generalMock) Insert(ctx context.Context, datasetID types.BQDatasetID, tableID types.BQTableID, schema bigquery.Schema, data []any) error {
-	x.Inserted = append(x.Inserted, insertedData{
+	x.Inserted = append(x.Inserted, MockInsertedData{
 		DatasetID: datasetID,
 		TableID:   tableID,
 		Schema:    schema,
@@ -98,7 +98,7 @@ func (*generalMock) UpdateTable(ctx context.Context, dataset types.BQDatasetID, 
 	return nil
 }
 
-type insertedData struct {
+type MockInsertedData struct {
 	DatasetID types.BQDatasetID
 	TableID   types.BQTableID
 	Schema    bigquery.Schema

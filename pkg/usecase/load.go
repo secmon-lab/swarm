@@ -240,6 +240,8 @@ func downloadCloudStorageObject(ctx context.Context, csClient interfaces.CloudSt
 	return records, nil
 }
 
+const maxIngestLogCount = 1000
+
 func ingestRecords(ctx context.Context, bq interfaces.BigQuery, bqDst model.BigQueryDest, records []*model.LogRecord) (*model.IngestLog, error) {
 	ingestID, ctx := utils.CtxIngestID(ctx)
 
@@ -276,14 +278,19 @@ func ingestRecords(ctx context.Context, bq interfaces.BigQuery, bqDst model.BigQ
 	}
 	result.TableSchema = string(jsonSchema)
 
-	data := make([]any, len(records))
-	for i := range records {
-		records[i].IngestID = ingestID
-		data[i] = records[i].Raw()
-	}
+	for i := 0; i < len(records); i += maxIngestLogCount {
+		end := min(i+maxIngestLogCount, len(records))
+		subRecords := records[i:end]
 
-	if err := bq.Insert(ctx, bqDst.Dataset, bqDst.Table, finalized, data); err != nil {
-		return result, goerr.Wrap(err, "failed to insert data").With("dst", bqDst)
+		data := make([]any, len(subRecords))
+		for i := range subRecords {
+			subRecords[i].IngestID = ingestID
+			data[i] = subRecords[i].Raw()
+		}
+
+		if err := bq.Insert(ctx, bqDst.Dataset, bqDst.Table, finalized, data); err != nil {
+			return result, goerr.Wrap(err, "failed to insert data").With("dst", bqDst)
+		}
 	}
 
 	result.Success = true

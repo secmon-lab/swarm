@@ -6,7 +6,9 @@ import (
 	_ "embed"
 	"io"
 	"testing"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/m-mizutani/gt"
 	"github.com/m-mizutani/swarm/pkg/domain/model"
 	"github.com/m-mizutani/swarm/pkg/domain/types"
@@ -122,4 +124,36 @@ func TestLoadData(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestIngestRecordBigNum(t *testing.T) {
+	bqMock := bq.NewGeneralMock()
+	ctx := context.Background()
+	dst := model.BigQueryDest{
+		Dataset: "test-dataset",
+		Table:   "test-table",
+	}
+
+	var records []*model.LogRecord
+	for i := 0; i < 1001; i++ {
+		records = append(records, &model.LogRecord{
+			ID:        types.LogID(uuid.NewString()),
+			Timestamp: time.Now(),
+			Data: map[string]interface{}{
+				"key": "value",
+			},
+			IngestedAt: time.Now(),
+		})
+	}
+
+	resp := gt.R1(usecase.IngestRecords(ctx, bqMock, dst, records)).NoError(t)
+	gt.True(t, resp.Success)
+
+	gt.A(t, bqMock.Inserted).Length(2).
+		At(0, func(t testing.TB, v bq.MockInsertedData) {
+			gt.A(t, v.Data).Length(1000)
+		}).
+		At(1, func(t testing.TB, v bq.MockInsertedData) {
+			gt.A(t, v.Data).Length(1)
+		})
 }
