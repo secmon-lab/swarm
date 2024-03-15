@@ -19,7 +19,7 @@ const (
 	defaultReadObjectConcurrency = 32
 	defaultEnqueueCountLimit     = 128
 	defaultEnqueueSizeLimit      = 4 // MiB
-	defaultIngestConcurrency     = 16
+	defaultIngestConcurrency     = 64
 )
 
 func New(clients *infra.Clients, options ...Option) *UseCase {
