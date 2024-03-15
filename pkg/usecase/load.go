@@ -50,6 +50,11 @@ func (x *UseCase) LoadDataByObject(ctx context.Context, url types.CSUrl) error {
 	return x.Load(ctx, loadReq)
 }
 
+type ingestRequest struct {
+	dst     model.BigQueryDest
+	records []*model.LogRecord
+}
+
 func (x *UseCase) Load(ctx context.Context, requests []*model.LoadRequest) error {
 	reqID, ctx := utils.CtxRequestID(ctx)
 
@@ -82,13 +87,41 @@ func (x *UseCase) Load(ctx context.Context, requests []*model.LoadRequest) error
 		return err
 	}
 
-	for dst, records := range logRecords {
-		log, err := ingestRecords(ctx, x.clients.BigQuery(), dst, records)
+	reqCh := make(chan ingestRequest, len(logRecords))
+	for dst := range logRecords {
+		reqCh <- ingestRequest{dst: dst, records: logRecords[dst]}
+	}
+	close(reqCh)
+
+	errCh := make(chan error, len(logRecords))
+	logCh := make(chan *model.IngestLog, len(logRecords))
+	var wg sync.WaitGroup
+	for i := 0; i < x.ingestConcurrency; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			for req := range reqCh {
+				log, err := ingestRecords(ctx, x.clients.BigQuery(), req.dst, req.records)
+				logCh <- log
+				if err != nil {
+					log.Error = err.Error()
+					errCh <- err
+				}
+			}
+		}()
+	}
+
+	wg.Wait()
+	close(errCh)
+	close(logCh)
+
+	for log := range logCh {
 		loadLog.Ingests = append(loadLog.Ingests, log)
-		if err != nil {
-			loadLog.Error = err.Error()
-			return err
-		}
+	}
+	for err := range errCh {
+		loadLog.Error = err.Error()
+		return err
 	}
 
 	loadLog.Success = true

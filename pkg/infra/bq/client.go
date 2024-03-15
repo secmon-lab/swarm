@@ -35,7 +35,10 @@ func New(ctx context.Context, projectID string) (*Client, error) {
 		return nil, goerr.Wrap(err, "failed to create bigquery client").With("projectID", projectID)
 	}
 
-	bqClient, err := bigquery.NewClient(ctx, projectID)
+	bqClient, err := bigquery.NewClient(ctx, projectID,
+		mw.WithMultiplexing(),
+		mw.WithMultiplexPoolLimit(16),
+	)
 	if err != nil {
 		return nil, goerr.Wrap(err, "failed to create bigquery client").With("projectID", projectID)
 	}

@@ -35,6 +35,7 @@ type IngestLog struct {
 	TableSchema  string             `json:"table_schema" bigquery:"table_schema"`
 	LogCount     int                `json:"log_count" bigquery:"log_count"`
 	Success      bool               `json:"success" bigquery:"success"`
+	Error        string             `json:"error" bigquery:"error"`
 }
 
 type LoadLogRaw struct {

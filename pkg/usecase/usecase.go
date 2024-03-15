@@ -10,6 +10,7 @@ type UseCase struct {
 	metadata *model.MetadataConfig
 
 	readObjectConcurrency int
+	ingestConcurrency     int
 	enqueueCountLimit     int
 	enqueueSizeLimit      int
 }
@@ -18,12 +19,14 @@ const (
 	defaultReadObjectConcurrency = 32
 	defaultEnqueueCountLimit     = 128
 	defaultEnqueueSizeLimit      = 4 // MiB
+	defaultIngestConcurrency     = 16
 )
 
 func New(clients *infra.Clients, options ...Option) *UseCase {
 	uc := &UseCase{
 		clients:               clients,
 		readObjectConcurrency: defaultReadObjectConcurrency,
+		ingestConcurrency:     defaultIngestConcurrency,
 		enqueueCountLimit:     defaultEnqueueCountLimit,
 		enqueueSizeLimit:      defaultEnqueueSizeLimit,
 	}
