@@ -21,12 +21,15 @@ import (
 
 func serveCommand() *cli.Command {
 	var (
-		addr        string
-		concurrency int
-		bq          config.BigQuery
-		policy      config.Policy
-		metadata    config.Metadata
-		sentry      config.Sentry
+		addr              string
+		readConcurrency   int
+		ingestConcurrency int
+		stateTimeout      time.Duration
+
+		bq       config.BigQuery
+		policy   config.Policy
+		metadata config.Metadata
+		sentry   config.Sentry
 
 		firestoreProject  string
 		firestoreDatabase string
@@ -48,8 +51,22 @@ func serveCommand() *cli.Command {
 				Name:        "read-concurrency",
 				EnvVars:     []string{"SWARM_READ_CONCURRENCY"},
 				Usage:       "Number of concurrent read from CloudStorage",
-				Destination: &concurrency,
+				Destination: &readConcurrency,
 				Value:       32,
+			},
+			&cli.IntFlag{
+				Name:        "ingest-concurrency",
+				EnvVars:     []string{"SWARM_INGEST_CONCURRENCY"},
+				Usage:       "Number of concurrent ingest to BigQuery",
+				Destination: &ingestConcurrency,
+				Value:       32,
+			},
+			&cli.DurationFlag{
+				Name:        "state-timeout",
+				EnvVars:     []string{"SWARM_STATE_TIMEOUT"},
+				Usage:       "Timeout duration to wait state",
+				Destination: &stateTimeout,
+				Value:       30 * time.Minute,
 			},
 			&cli.StringFlag{
 				Name:        "firestore-project-id",
@@ -70,7 +87,9 @@ func serveCommand() *cli.Command {
 			utils.Logger().Info("starting server",
 				slog.Group("config",
 					"addr", addr,
-					"read-concurrency", concurrency,
+					"read-concurrency", readConcurrency,
+					"ingest-concurrency", ingestConcurrency,
+					"state-timeout", stateTimeout.String(),
 					"firestore-project-id", firestoreProject,
 					"firestore-database-id", firestoreDatabase,
 
@@ -117,15 +136,19 @@ func serveCommand() *cli.Command {
 				utils.Logger().Warn("firestore is not configured")
 			}
 
-			var ucOptions []usecase.Option
+			ucOptions := []usecase.Option{
+				usecase.WithIngestConcurrency(ingestConcurrency),
+				usecase.WithStateTimeout(stateTimeout),
+			}
+
 			if meta, err := metadata.Configure(); err != nil {
 				return goerr.Wrap(err, "failed to configure metadata")
 			} else if meta != nil {
 				ucOptions = append(ucOptions, usecase.WithMetadata(meta))
 			}
 
-			if concurrency > 0 {
-				ucOptions = append(ucOptions, usecase.WithReadObjectConcurrency(concurrency))
+			if readConcurrency > 0 {
+				ucOptions = append(ucOptions, usecase.WithReadObjectConcurrency(readConcurrency))
 			}
 
 			uc := usecase.New(infra.New(infraOptions...), ucOptions...)

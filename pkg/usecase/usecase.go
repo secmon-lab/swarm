@@ -23,6 +23,7 @@ const (
 	defaultEnqueueCountLimit     = 128
 	defaultEnqueueSizeLimit      = 4 // MiB
 	defaultIngestConcurrency     = 64
+	defaultStateTimeout          = 30 * time.Minute
 )
 
 func New(clients *infra.Clients, options ...Option) *UseCase {
@@ -32,6 +33,7 @@ func New(clients *infra.Clients, options ...Option) *UseCase {
 		ingestConcurrency:     defaultIngestConcurrency,
 		enqueueCountLimit:     defaultEnqueueCountLimit,
 		enqueueSizeLimit:      defaultEnqueueSizeLimit,
+		stateTimeout:          defaultStateTimeout,
 	}
 
 	for _, option := range options {
@@ -73,5 +75,20 @@ func WithEnqueueSizeLimit(n int) Option {
 	}
 	return func(uc *UseCase) {
 		uc.enqueueSizeLimit = n
+	}
+}
+
+func WithIngestConcurrency(n int) Option {
+	if n < 1 {
+		n = 1
+	}
+	return func(uc *UseCase) {
+		uc.ingestConcurrency = n
+	}
+}
+
+func WithStateTimeout(d time.Duration) Option {
+	return func(uc *UseCase) {
+		uc.stateTimeout = d
 	}
 }
