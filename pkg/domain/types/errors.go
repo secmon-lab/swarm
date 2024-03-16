@@ -20,4 +20,7 @@ var (
 
 	// Assertion error
 	ErrAssertion = goerr.New("assertion error")
+
+	// Normal error
+	ErrBlockingPubSub = goerr.New("blocking pubsub ack")
 )

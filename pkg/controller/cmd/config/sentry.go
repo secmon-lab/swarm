@@ -1,6 +1,8 @@
 package config
 
 import (
+	"log/slog"
+
 	"github.com/getsentry/sentry-go"
 	"github.com/m-mizutani/goerr"
 	"github.com/m-mizutani/swarm/pkg/utils"
@@ -43,4 +45,11 @@ func (x *Sentry) Configure() error {
 	}
 
 	return nil
+}
+
+func (x *Sentry) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("dsn", x.dsn),
+		slog.String("env", x.env),
+	)
 }

@@ -1,6 +1,8 @@
 package config
 
 import (
+	"log/slog"
+
 	"github.com/m-mizutani/swarm/pkg/infra/policy"
 	"github.com/urfave/cli/v2"
 )
@@ -29,4 +31,10 @@ func (x *Policy) Configure() (*policy.Client, error) {
 	}
 
 	return policy.New(options...)
+}
+
+func (x *Policy) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.Any("policyDir", x.dir.Value()),
+	)
 }

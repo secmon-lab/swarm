@@ -1,6 +1,8 @@
 package config
 
 import (
+	"log/slog"
+
 	"github.com/m-mizutani/goerr"
 	"github.com/m-mizutani/swarm/pkg/domain/model"
 	"github.com/m-mizutani/swarm/pkg/domain/types"
@@ -41,4 +43,11 @@ func (x *Metadata) Configure() (*model.MetadataConfig, error) {
 	}
 
 	return model.NewMetadataConfig(x.dataset, x.table), nil
+}
+
+func (x *Metadata) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("dataset", string(x.dataset)),
+		slog.String("table", string(x.table)),
+	)
 }

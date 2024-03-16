@@ -2,6 +2,7 @@ package config
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/m-mizutani/goerr"
 	"github.com/m-mizutani/swarm/pkg/domain/types"
@@ -30,4 +31,10 @@ func (x *BigQuery) Configure(ctx context.Context) (*bq.Client, error) {
 	}
 
 	return bq.New(ctx, x.projectID)
+}
+
+func (x *BigQuery) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("projectID", x.projectID),
+	)
 }

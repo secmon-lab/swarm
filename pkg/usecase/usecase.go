@@ -1,6 +1,8 @@
 package usecase
 
 import (
+	"time"
+
 	"github.com/m-mizutani/swarm/pkg/domain/model"
 	"github.com/m-mizutani/swarm/pkg/infra"
 )
@@ -13,6 +15,7 @@ type UseCase struct {
 	ingestConcurrency     int
 	enqueueCountLimit     int
 	enqueueSizeLimit      int
+	stateTimeout          time.Duration
 }
 
 const (

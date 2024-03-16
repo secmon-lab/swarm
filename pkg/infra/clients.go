@@ -10,6 +10,7 @@ type Clients struct {
 	cs     interfaces.CloudStorage
 	pubsub interfaces.PubSub
 	policy *policy.Client
+	db     interfaces.Database
 }
 
 func New(options ...Option) *Clients {
@@ -25,6 +26,7 @@ func (x *Clients) BigQuery() interfaces.BigQuery         { return x.bq }
 func (x *Clients) CloudStorage() interfaces.CloudStorage { return x.cs }
 func (x *Clients) PubSub() interfaces.PubSub             { return x.pubsub }
 func (x *Clients) Policy() *policy.Client                { return x.policy }
+func (x *Clients) Database() interfaces.Database         { return x.db }
 
 type Option func(*Clients)
 
@@ -49,5 +51,11 @@ func WithPubSub(pubsub interfaces.PubSub) Option {
 func WithPolicy(policy *policy.Client) Option {
 	return func(c *Clients) {
 		c.policy = policy
+	}
+}
+
+func WithDatabase(db interfaces.Database) Option {
+	return func(c *Clients) {
+		c.db = db
 	}
 }

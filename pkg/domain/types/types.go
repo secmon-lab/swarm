@@ -140,3 +140,16 @@ const (
 )
 
 func (x EventSchema) Query() string { return "data.event." + string(x) }
+
+type (
+	MsgType  string
+	MsgState string
+)
+
+const (
+	MsgPubSub MsgType = "pubsub"
+
+	MsgFailed    MsgState = "failed"
+	MsgRunning   MsgState = "running"
+	MsgCompleted MsgState = "completed"
+)

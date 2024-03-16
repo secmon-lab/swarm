@@ -4,6 +4,7 @@ go 1.22.0
 
 require (
 	cloud.google.com/go/bigquery v1.59.1
+	cloud.google.com/go/firestore v1.14.0
 	cloud.google.com/go/pubsub v1.36.2
 	cloud.google.com/go/storage v1.39.0
 	github.com/fatih/color v1.16.0
@@ -20,6 +21,7 @@ require (
 	github.com/open-policy-agent/opa v0.62.0
 	github.com/urfave/cli/v2 v2.27.1
 	google.golang.org/api v0.168.0
+	google.golang.org/grpc v1.62.1
 	google.golang.org/protobuf v1.33.0
 )
 
@@ -28,6 +30,7 @@ require (
 	cloud.google.com/go/compute v1.25.0 // indirect
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
 	cloud.google.com/go/iam v1.1.6 // indirect
+	cloud.google.com/go/longrunning v0.5.5 // indirect
 	github.com/OneOfOne/xxhash v1.2.8 // indirect
 	github.com/agnivade/levenshtein v1.1.1 // indirect
 	github.com/apache/arrow/go/v14 v14.0.2 // indirect
@@ -88,7 +91,6 @@ require (
 	google.golang.org/genproto v0.0.0-20240304212257-790db918fca8 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240304212257-790db918fca8 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240304212257-790db918fca8 // indirect
-	google.golang.org/grpc v1.62.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )

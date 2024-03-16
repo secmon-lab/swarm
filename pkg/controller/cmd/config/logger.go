@@ -122,3 +122,11 @@ func (x *Logger) Configure() (*slog.Logger, error) {
 
 	return slog.New(handler), nil
 }
+
+func (x *Logger) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("level", x.level),
+		slog.String("output", x.output),
+		slog.String("format", x.format),
+	)
+}
