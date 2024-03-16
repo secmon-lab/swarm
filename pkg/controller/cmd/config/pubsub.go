@@ -2,6 +2,7 @@ package config
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/m-mizutani/swarm/pkg/domain/types"
 	"github.com/m-mizutani/swarm/pkg/infra/pubsub"
@@ -37,4 +38,11 @@ func (x *PubSub) Configure(ctx context.Context) (*pubsub.Client, error) {
 	}
 
 	return client, nil
+}
+
+func (x *PubSub) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("projectID", string(x.projectID)),
+		slog.String("topicID", string(x.topicID)),
+	)
 }

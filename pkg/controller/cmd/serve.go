@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -12,6 +13,7 @@ import (
 	"github.com/m-mizutani/swarm/pkg/controller/server"
 	"github.com/m-mizutani/swarm/pkg/infra"
 	"github.com/m-mizutani/swarm/pkg/infra/cs"
+	"github.com/m-mizutani/swarm/pkg/infra/firestore"
 	"github.com/m-mizutani/swarm/pkg/usecase"
 	"github.com/m-mizutani/swarm/pkg/utils"
 	"github.com/urfave/cli/v2"
@@ -25,6 +27,9 @@ func serveCommand() *cli.Command {
 		policy      config.Policy
 		metadata    config.Metadata
 		sentry      config.Sentry
+
+		firestoreProject  string
+		firestoreDatabase string
 	)
 
 	return &cli.Command{
@@ -46,9 +51,35 @@ func serveCommand() *cli.Command {
 				Destination: &concurrency,
 				Value:       32,
 			},
+			&cli.StringFlag{
+				Name:        "firestore-project-id",
+				EnvVars:     []string{"SWARM_FIRESTORE_PROJECT_ID"},
+				Usage:       "Project ID of Firestore (To manage state)",
+				Destination: &firestoreProject,
+			},
+			&cli.StringFlag{
+				Name:        "firestore-database-id",
+				EnvVars:     []string{"SWARM_FIRESTORE_DATABASE_ID"},
+				Usage:       "Database ID of Firestore (To manage state)",
+				Destination: &firestoreDatabase,
+			},
 		}, bq.Flags(), policy.Flags(), metadata.Flags(), sentry.Flags()),
 		Action: func(c *cli.Context) error {
 			ctx := c.Context
+
+			utils.Logger().Info("starting server",
+				slog.Group("config",
+					"addr", addr,
+					"read-concurrency", concurrency,
+					"firestore-project-id", firestoreProject,
+					"firestore-database-id", firestoreDatabase,
+
+					"bigquery", &bq,
+					"policy", &policy,
+					"metadata", &metadata,
+					"sentry", &sentry,
+				),
+			)
 
 			if err := sentry.Configure(); err != nil {
 				return goerr.Wrap(err, "failed to configure sentry")
@@ -73,6 +104,18 @@ func serveCommand() *cli.Command {
 				return goerr.Wrap(err, "failed to configure CloudStorage client")
 			}
 			infraOptions = append(infraOptions, infra.WithCloudStorage(csClient))
+
+			if firestoreProject != "" && firestoreDatabase != "" {
+				dbClient, err := firestore.New(ctx, firestoreProject, firestoreDatabase)
+				if err != nil {
+					return goerr.Wrap(err, "failed to configure Firestore client")
+				}
+				infraOptions = append(infraOptions, infra.WithDatabase(dbClient))
+			} else if firestoreProject != "" || firestoreDatabase != "" {
+				return goerr.New("both firestore-project-id and firestore-database-id are required")
+			} else {
+				utils.Logger().Warn("firestore is not configured")
+			}
 
 			var ucOptions []usecase.Option
 			if meta, err := metadata.Configure(); err != nil {

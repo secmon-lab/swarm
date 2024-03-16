@@ -3,6 +3,7 @@ package interfaces
 import (
 	"context"
 	"io"
+	"time"
 
 	"cloud.google.com/go/bigquery"
 	"cloud.google.com/go/storage"
@@ -34,4 +35,9 @@ type CloudStorage interface {
 	Open(ctx context.Context, obj model.CloudStorageObject) (io.ReadCloser, error)
 	Attrs(ctx context.Context, obj model.CloudStorageObject) (*storage.ObjectAttrs, error)
 	List(ctx context.Context, bucket types.CSBucket, query *storage.Query) CSObjectIterator
+}
+
+type Database interface {
+	GetOrCreateState(ctx context.Context, msgType types.MsgType, input *model.State) (*model.State, bool, error)
+	UpdateState(ctx context.Context, msgType types.MsgType, id string, state types.MsgState, now time.Time) error
 }
