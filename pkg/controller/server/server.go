@@ -95,7 +95,7 @@ func handlePubSubMessage(hdlr eventHandler) requestHandler {
 				return nil
 			}
 
-			d := time.Since(state.ExpiresAt) + time.Second
+			d := time.Until(state.ExpiresAt) + time.Second
 			utils.CtxLogger(ctx).Info(
 				"skip pubsub message because it's already acquired, but need to sleep",
 				"pubsub_msg", msg,
