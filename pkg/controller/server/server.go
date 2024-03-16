@@ -70,6 +70,9 @@ func handlePubSubSwarmEvent(uc interfaces.UseCase, r *http.Request) error {
 		return goerr.Wrap(err, "failed to unmarshal body").With("body", string(body))
 	}
 
+	ctx := r.Context()
+	utils.CtxLogger(ctx).Info("Received pubsub message for swarm", "msg", msg)
+
 	data, err := base64.StdEncoding.DecodeString(msg.Message.Data)
 	if err != nil {
 		return goerr.Wrap(err, "failed to decode base64").With("data", msg.Message.Data)
@@ -111,6 +114,8 @@ func handlePubSubCloudStorageEvent(uc interfaces.UseCase, r *http.Request) error
 	if err := json.Unmarshal(body, &msg); err != nil {
 		return goerr.Wrap(err, "failed to unmarshal body").With("body", string(body))
 	}
+	ctx := r.Context()
+	utils.CtxLogger(ctx).Info("Received pubsub message for Cloud Storage", "msg", msg)
 
 	data, err := base64.StdEncoding.DecodeString(msg.Message.Data)
 	if err != nil {
@@ -123,7 +128,7 @@ func handlePubSubCloudStorageEvent(uc interfaces.UseCase, r *http.Request) error
 	}
 
 	obj := event.ToObject()
-	sources, err := uc.ObjectToSources(r.Context(), obj)
+	sources, err := uc.ObjectToSources(ctx, obj)
 	if err != nil {
 		return goerr.Wrap(err, "failed to convert event to sources").With("event", event)
 	}
@@ -136,7 +141,7 @@ func handlePubSubCloudStorageEvent(uc interfaces.UseCase, r *http.Request) error
 		}
 	}
 
-	if err := uc.Load(r.Context(), loadReq); err != nil {
+	if err := uc.Load(ctx, loadReq); err != nil {
 		return goerr.Wrap(err).With("event", event)
 	}
 
