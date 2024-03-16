@@ -88,6 +88,8 @@ func serveCommand() *cli.Command {
 				slog.Group("config",
 					"addr", addr,
 					"read-concurrency", readConcurrency,
+					"ingest-concurrency", ingestConcurrency,
+					"state-timeout", stateTimeout.String(),
 					"firestore-project-id", firestoreProject,
 					"firestore-database-id", firestoreDatabase,
 
