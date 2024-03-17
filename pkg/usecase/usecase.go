@@ -15,7 +15,12 @@ type UseCase struct {
 	ingestConcurrency     int
 	enqueueCountLimit     int
 	enqueueSizeLimit      int
-	stateTimeout          time.Duration
+
+	// stateTimeout is a duration to wait for state transition. Even if the state is not changed, other process can acquire the state after this duration.
+	stateTimeout time.Duration
+
+	// stateTTL is a duration to keep the state. After this duration, the state is deleted from database. This is used to avoid re-process of the same message.
+	stateTTL time.Duration
 }
 
 const (
@@ -24,6 +29,7 @@ const (
 	defaultEnqueueSizeLimit      = 4 // MiB
 	defaultIngestConcurrency     = 64
 	defaultStateTimeout          = 30 * time.Minute
+	defaultStateTTL              = 7 * 24 * time.Hour
 )
 
 func New(clients *infra.Clients, options ...Option) *UseCase {
@@ -34,6 +40,7 @@ func New(clients *infra.Clients, options ...Option) *UseCase {
 		enqueueCountLimit:     defaultEnqueueCountLimit,
 		enqueueSizeLimit:      defaultEnqueueSizeLimit,
 		stateTimeout:          defaultStateTimeout,
+		stateTTL:              defaultStateTTL,
 	}
 
 	for _, option := range options {
@@ -90,5 +97,11 @@ func WithIngestConcurrency(n int) Option {
 func WithStateTimeout(d time.Duration) Option {
 	return func(uc *UseCase) {
 		uc.stateTimeout = d
+	}
+}
+
+func WithStateTTL(d time.Duration) Option {
+	return func(uc *UseCase) {
+		uc.stateTTL = d
 	}
 }

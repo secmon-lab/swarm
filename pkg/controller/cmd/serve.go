@@ -25,6 +25,7 @@ func serveCommand() *cli.Command {
 		readConcurrency   int
 		ingestConcurrency int
 		stateTimeout      time.Duration
+		stateTTL          time.Duration
 
 		bq       config.BigQuery
 		policy   config.Policy
@@ -68,6 +69,13 @@ func serveCommand() *cli.Command {
 				Destination: &stateTimeout,
 				Value:       30 * time.Minute,
 			},
+			&cli.DurationFlag{
+				Name:        "state-ttl",
+				EnvVars:     []string{"SWARM_STATE_TTL"},
+				Usage:       "TTL duration to keep state",
+				Destination: &stateTTL,
+				Value:       7 * 24 * time.Hour,
+			},
 			&cli.StringFlag{
 				Name:        "firestore-project-id",
 				EnvVars:     []string{"SWARM_FIRESTORE_PROJECT_ID"},
@@ -90,6 +98,7 @@ func serveCommand() *cli.Command {
 					"read-concurrency", readConcurrency,
 					"ingest-concurrency", ingestConcurrency,
 					"state-timeout", stateTimeout.String(),
+					"state-ttl", stateTTL.String(),
 					"firestore-project-id", firestoreProject,
 					"firestore-database-id", firestoreDatabase,
 
@@ -139,6 +148,7 @@ func serveCommand() *cli.Command {
 			ucOptions := []usecase.Option{
 				usecase.WithIngestConcurrency(ingestConcurrency),
 				usecase.WithStateTimeout(stateTimeout),
+				usecase.WithStateTTL(stateTTL),
 			}
 
 			if meta, err := metadata.Configure(); err != nil {
