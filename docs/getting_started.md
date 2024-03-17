@@ -65,6 +65,8 @@ Once the rules are prepared, execute the command as follows:
 swarm exec --bigquery-project-id my-project -p ./policy gs://swarm-test-bucket/test.log | jq
 ```
 
+`exec` command is used to ingest the log data from Cloud Storage into BigQuery as one shot command. The `-p` option specifies the directory where the rule files are located. The `gs://swarm-test-bucket/test.log` is the object to be ingested. The `jq` command is used to format the output.
+
 If successful, this command will output logs like the following:
 
 ```json
@@ -82,13 +84,13 @@ If successful, this command will output logs like the following:
     "Success": true,
     "Ingests": [
       {
-        "ID": "0b10e152-f19e-467a-96d1-64ad24db6985",
-        "StartedAt": "2024-02-23T11:27:59.57609Z",
-        "FinishedAt": "2024-02-23T11:28:01.12265Z",
+        "id": "0b10e152-f19e-467a-96d1-64ad24db6985",
+        "started_at": "2024-02-23T11:27:59.57609Z",
+        "finished_at": "2024-02-23T11:28:01.12265Z",
         "ObjectSchema": "my_log",
         "DatasetID": "swarm_test",
         "TableID": "my_log_table",
-        "TableSchema": "[{\"name\":\"ID\",\"type\":\"STRING\"},{\"name\":\"IngestID\",\"type\":\"STRING\"},{\"name\":\"Timestamp\",\"type\":\"TIMESTAMP\"},{\"name\":\"IngestedAt\",\"type\":\"TIMESTAMP\"},{\"fields\":[{\"name\":\"user\",\"type\":\"STRING\"},{\"name\":\"action\",\"type\":\"STRING\"},{\"name\":\"event_time\",\"type\":\"FLOAT\"},{\"name\":\"log_id\",\"type\":\"STRING\"},{\"name\":\"remote_ip\",\"type\":\"STRING\"},{\"name\":\"success\",\"type\":\"BOOLEAN\"}],\"name\":\"Data\",\"type\":\"RECORD\"}]",
+        <--- snip --->
         "LogCount": 2,
         "Success": true
       }

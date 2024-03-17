@@ -12,4 +12,5 @@ The swarm has several subcommands, each with the following details:
 Upon startup, the following endpoints are available:
 
 - `GET /health`: Checks the server's status. If the server is operating normally, it returns `200 OK`.
-- `POST /event/pubsub`: Receives notifications from Pub/Sub, specifically notifications for object creation in Cloud Storage.
+- `POST /event/pubsub/cs`: Receives notifications from Pub/Sub, specifically notifications for object creation in Cloud Storage.
+- `POST /event/pubsub/swarm`: Receives messages that swarm creates from Pub/Sub
