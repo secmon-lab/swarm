@@ -19,6 +19,7 @@ func (x *UseCase) GetOrCreateState(ctx context.Context, msgType types.MsgType, i
 		CreatedAt: now,
 		UpdatedAt: now,
 		ExpiresAt: now.Add(x.stateTimeout),
+		TTL:       now.Add(x.stateTTL),
 	}
 
 	// If database is not available, return acquired state always

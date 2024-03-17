@@ -13,6 +13,7 @@ type State struct {
 	CreatedAt time.Time       `firestore:"created_at"`
 	UpdatedAt time.Time       `firestore:"updated_at"`
 	ExpiresAt time.Time       `firestore:"expires_at"`
+	TTL       time.Time       `firestore:"ttl"`
 }
 
 func (x *State) Acquired(now time.Time) bool {
@@ -25,6 +26,6 @@ func (x *State) Acquired(now time.Time) bool {
 		return true
 
 	default:
-		panic("unexpected state type")
+		panic("unexpected state type: " + string(x.State))
 	}
 }
