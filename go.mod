@@ -7,6 +7,7 @@ require (
 	cloud.google.com/go/firestore v1.15.0
 	cloud.google.com/go/pubsub v1.37.0
 	cloud.google.com/go/storage v1.39.1
+	github.com/dustin/go-humanize v1.0.1
 	github.com/fatih/color v1.16.0
 	github.com/getsentry/sentry-go v0.27.0
 	github.com/go-chi/chi/v5 v5.0.12

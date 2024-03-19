@@ -34,6 +34,8 @@ func serveCommand() *cli.Command {
 
 		firestoreProject  string
 		firestoreDatabase string
+
+		memoryLimit string
 	)
 
 	return &cli.Command{
@@ -88,6 +90,12 @@ func serveCommand() *cli.Command {
 				Usage:       "Database ID of Firestore (To manage state)",
 				Destination: &firestoreDatabase,
 			},
+			&cli.StringFlag{
+				Name:        "memory-limit",
+				EnvVars:     []string{"SWARM_MEMORY_LIMIT"},
+				Usage:       "Memory limit for each process. If it exceeds the limit, the process return 429 too many requests error. (e.g. 1GiB)",
+				Destination: &memoryLimit,
+			},
 		}, bq.Flags(), policy.Flags(), metadata.Flags(), sentry.Flags()),
 		Action: func(c *cli.Context) error {
 			ctx := c.Context
@@ -101,6 +109,7 @@ func serveCommand() *cli.Command {
 					"state-ttl", stateTTL.String(),
 					"firestore-project-id", firestoreProject,
 					"firestore-database-id", firestoreDatabase,
+					"memory-limit", memoryLimit,
 
 					"bigquery", &bq,
 					"policy", &policy,

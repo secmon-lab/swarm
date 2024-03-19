@@ -4,8 +4,10 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"runtime"
 	"strings"
 
+	"github.com/dustin/go-humanize"
 	"github.com/m-mizutani/swarm/pkg/domain/interfaces"
 	"github.com/m-mizutani/swarm/pkg/domain/model"
 	"github.com/m-mizutani/swarm/pkg/utils"
@@ -83,4 +85,25 @@ func Logging(next http.Handler) http.Handler {
 			slog.String("user_agent", r.UserAgent()),
 		)
 	})
+}
+
+type ReadMemStatsFn func(m *runtime.MemStats)
+
+func MemoryLimit(limit uint64, read ReadMemStatsFn) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var m runtime.MemStats
+			read(&m)
+			if m.Sys > limit {
+				utils.CtxLogger(r.Context()).Warn("Memory limit exceeded",
+					"limit", humanize.Bytes(limit),
+					"sys", humanize.Bytes(m.Sys),
+				)
+				http.Error(w, "Memory limit exceeded", http.StatusTooManyRequests)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
 }
