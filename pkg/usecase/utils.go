@@ -174,7 +174,7 @@ func buildBQMetadata(schema bigquery.Schema, pt types.BQPartition) (*bigquery.Ta
 	if pt != types.BQPartitionNone {
 		if t, ok := tpMap[pt]; ok {
 			md.TimePartitioning = &bigquery.TimePartitioning{
-				Field: "Timestamp",
+				Field: "timestamp",
 				Type:  t,
 			}
 		} else {
