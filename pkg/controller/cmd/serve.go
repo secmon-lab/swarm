@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/dustin/go-humanize"
 	"github.com/m-mizutani/goerr"
 	"github.com/m-mizutani/swarm/pkg/controller/cmd/config"
 	"github.com/m-mizutani/swarm/pkg/controller/server"
@@ -34,6 +35,8 @@ func serveCommand() *cli.Command {
 
 		firestoreProject  string
 		firestoreDatabase string
+
+		memoryLimit string
 	)
 
 	return &cli.Command{
@@ -88,6 +91,12 @@ func serveCommand() *cli.Command {
 				Usage:       "Database ID of Firestore (To manage state)",
 				Destination: &firestoreDatabase,
 			},
+			&cli.StringFlag{
+				Name:        "memory-limit",
+				EnvVars:     []string{"SWARM_MEMORY_LIMIT"},
+				Usage:       "Memory limit for each process. If it exceeds the limit, the process return 429 too many requests error. (e.g. 1GiB)",
+				Destination: &memoryLimit,
+			},
 		}, bq.Flags(), policy.Flags(), metadata.Flags(), sentry.Flags()),
 		Action: func(c *cli.Context) error {
 			ctx := c.Context
@@ -101,6 +110,7 @@ func serveCommand() *cli.Command {
 					"state-ttl", stateTTL.String(),
 					"firestore-project-id", firestoreProject,
 					"firestore-database-id", firestoreDatabase,
+					"memory-limit", memoryLimit,
 
 					"bigquery", &bq,
 					"policy", &policy,
@@ -162,7 +172,17 @@ func serveCommand() *cli.Command {
 			}
 
 			uc := usecase.New(infra.New(infraOptions...), ucOptions...)
-			srv := server.New(uc)
+
+			var serverOptions []server.Option
+			if memoryLimit != "" {
+				limit, err := humanize.ParseBytes(memoryLimit)
+				if err != nil {
+					return goerr.Wrap(err, "invalid memory limit option")
+				}
+				serverOptions = append(serverOptions, server.WithMemoryLimit(limit))
+			}
+
+			srv := server.New(uc, serverOptions...)
 
 			// Listen srv on addr
 			httpServer := &http.Server{

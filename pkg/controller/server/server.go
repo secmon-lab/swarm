@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"runtime"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -21,9 +22,36 @@ type Server struct {
 	mux *chi.Mux
 }
 
+type serverCfg struct {
+	memoryLimit uint64
+	readMem     ReadMemStatsFn
+}
+
 type requestHandler func(uc interfaces.UseCase, r *http.Request) error
 
-func New(uc interfaces.UseCase) *Server {
+type Option func(*serverCfg)
+
+func WithMemoryLimit(limit uint64) Option {
+	return func(cfg *serverCfg) {
+		cfg.memoryLimit = limit
+	}
+}
+
+func WithReadMemStats(fn ReadMemStatsFn) Option {
+	return func(cfg *serverCfg) {
+		cfg.readMem = fn
+	}
+}
+
+func New(uc interfaces.UseCase, options ...Option) *Server {
+	cfg := &serverCfg{
+		memoryLimit: 0,
+		readMem:     runtime.ReadMemStats,
+	}
+	for _, opt := range options {
+		opt(cfg)
+	}
+
 	route := chi.NewRouter()
 
 	route.Use(Logging)
@@ -60,6 +88,10 @@ func New(uc interfaces.UseCase) *Server {
 	}
 
 	route.Route("/event", func(r chi.Router) {
+		if cfg.memoryLimit > 0 {
+			r.Use(MemoryLimit(cfg.memoryLimit, cfg.readMem))
+		}
+
 		r.Route("/pubsub", func(r chi.Router) {
 			r.Post("/cs", api(handlePubSubMessage(handleCloudStorageEvent)))
 			r.Post("/swarm", api(handlePubSubMessage(handleSwarmEvent)))

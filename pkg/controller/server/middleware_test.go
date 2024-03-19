@@ -1,9 +1,11 @@
 package server_test
 
 import (
+	"bytes"
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -51,4 +53,29 @@ func TestAuthorization(t *testing.T) {
 			gt.Equal(t, w.Code, tc.code)
 		})
 	}
+}
+
+func TestMemoryLimit(t *testing.T) {
+	mock := &usecase.Mock{}
+
+	var currentMem uint64 = 100
+	readMemMock := func(m *runtime.MemStats) {
+		m.Sys = currentMem
+	}
+	srv := server.New(mock, server.WithMemoryLimit(1000), server.WithReadMemStats(readMemMock))
+
+	t.Run("not reach to memory limit", func(t *testing.T) {
+		r := httptest.NewRequest("POST", "/event/pubsub/cs", bytes.NewReader(pubsubBody))
+		w := httptest.NewRecorder()
+		srv.ServeHTTP(w, r)
+		gt.Equal(t, w.Code, http.StatusOK)
+	})
+
+	t.Run("reached memory limit", func(t *testing.T) {
+		currentMem = 1001
+		r := httptest.NewRequest("POST", "/event/pubsub/cs", bytes.NewReader(pubsubBody))
+		w := httptest.NewRecorder()
+		srv.ServeHTTP(w, r)
+		gt.Equal(t, w.Code, http.StatusTooManyRequests)
+	})
 }
