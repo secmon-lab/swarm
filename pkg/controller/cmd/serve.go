@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/dustin/go-humanize"
 	"github.com/m-mizutani/goerr"
 	"github.com/m-mizutani/swarm/pkg/controller/cmd/config"
 	"github.com/m-mizutani/swarm/pkg/controller/server"
@@ -171,7 +172,17 @@ func serveCommand() *cli.Command {
 			}
 
 			uc := usecase.New(infra.New(infraOptions...), ucOptions...)
-			srv := server.New(uc)
+
+			var serverOptions []server.Option
+			if memoryLimit != "" {
+				limit, err := humanize.ParseBytes(memoryLimit)
+				if err != nil {
+					return goerr.Wrap(err, "invalid memory limit option")
+				}
+				serverOptions = append(serverOptions, server.WithMemoryLimit(limit))
+			}
+
+			srv := server.New(uc, serverOptions...)
 
 			// Listen srv on addr
 			httpServer := &http.Server{
