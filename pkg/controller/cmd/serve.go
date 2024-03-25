@@ -22,11 +22,12 @@ import (
 
 func serveCommand() *cli.Command {
 	var (
-		addr              string
-		readConcurrency   int
-		ingestConcurrency int
-		stateTimeout      time.Duration
-		stateTTL          time.Duration
+		addr                    string
+		readConcurrency         int
+		ingestTableConcurrency  int
+		ingestRecordConcurrency int
+		stateTimeout            time.Duration
+		stateTTL                time.Duration
 
 		bq       config.BigQuery
 		policy   config.Policy
@@ -59,11 +60,18 @@ func serveCommand() *cli.Command {
 				Value:       32,
 			},
 			&cli.IntFlag{
-				Name:        "ingest-concurrency",
-				EnvVars:     []string{"SWARM_INGEST_CONCURRENCY"},
-				Usage:       "Number of concurrent ingest to BigQuery",
-				Destination: &ingestConcurrency,
-				Value:       32,
+				Name:        "ingest-table-concurrency",
+				EnvVars:     []string{"SWARM_INGEST_TABLE_CONCURRENCY"},
+				Usage:       "Number of concurrent ingest to BigQuery (for tables)",
+				Destination: &ingestTableConcurrency,
+				Value:       16,
+			},
+			&cli.IntFlag{
+				Name:        "ingest-record-concurrency",
+				EnvVars:     []string{"SWARM_INGEST_RECORD_CONCURRENCY"},
+				Usage:       "Number of concurrent ingest to BigQuery (for tables)",
+				Destination: &ingestRecordConcurrency,
+				Value:       16,
 			},
 			&cli.DurationFlag{
 				Name:        "state-timeout",
@@ -105,7 +113,8 @@ func serveCommand() *cli.Command {
 				slog.Group("config",
 					"addr", addr,
 					"read-concurrency", readConcurrency,
-					"ingest-concurrency", ingestConcurrency,
+					"ingest-table-concurrency", ingestTableConcurrency,
+					"ingest-record-concurrency", ingestRecordConcurrency,
 					"state-timeout", stateTimeout.String(),
 					"state-ttl", stateTTL.String(),
 					"firestore-project-id", firestoreProject,
@@ -156,7 +165,8 @@ func serveCommand() *cli.Command {
 			}
 
 			ucOptions := []usecase.Option{
-				usecase.WithIngestConcurrency(ingestConcurrency),
+				usecase.WithIngestTableConcurrency(ingestTableConcurrency),
+				usecase.WithIngestRecordConcurrency(ingestRecordConcurrency),
 				usecase.WithStateTimeout(stateTimeout),
 				usecase.WithStateTTL(stateTTL),
 			}

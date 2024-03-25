@@ -11,10 +11,11 @@ type UseCase struct {
 	clients  *infra.Clients
 	metadata *model.MetadataConfig
 
-	readObjectConcurrency int
-	ingestConcurrency     int
-	enqueueCountLimit     int
-	enqueueSizeLimit      int
+	readObjectConcurrency   int
+	ingestTableConcurrency  int
+	ingestRecordConcurrency int
+	enqueueCountLimit       int
+	enqueueSizeLimit        int
 
 	// stateTimeout is a duration to wait for state transition. Even if the state is not changed, other process can acquire the state after this duration.
 	stateTimeout time.Duration
@@ -24,23 +25,25 @@ type UseCase struct {
 }
 
 const (
-	defaultReadObjectConcurrency = 32
-	defaultEnqueueCountLimit     = 128
-	defaultEnqueueSizeLimit      = 4 // MiB
-	defaultIngestConcurrency     = 64
-	defaultStateTimeout          = 30 * time.Minute
-	defaultStateTTL              = 7 * 24 * time.Hour
+	defaultReadObjectConcurrency   = 32
+	defaultEnqueueCountLimit       = 128
+	defaultEnqueueSizeLimit        = 4 // MiB
+	defaultIngestTableConcurrency  = 8
+	defaultIngestRecordConcurrency = 8
+	defaultStateTimeout            = 30 * time.Minute
+	defaultStateTTL                = 7 * 24 * time.Hour
 )
 
 func New(clients *infra.Clients, options ...Option) *UseCase {
 	uc := &UseCase{
-		clients:               clients,
-		readObjectConcurrency: defaultReadObjectConcurrency,
-		ingestConcurrency:     defaultIngestConcurrency,
-		enqueueCountLimit:     defaultEnqueueCountLimit,
-		enqueueSizeLimit:      defaultEnqueueSizeLimit,
-		stateTimeout:          defaultStateTimeout,
-		stateTTL:              defaultStateTTL,
+		clients:                 clients,
+		readObjectConcurrency:   defaultReadObjectConcurrency,
+		ingestTableConcurrency:  defaultIngestTableConcurrency,
+		ingestRecordConcurrency: defaultIngestRecordConcurrency,
+		enqueueCountLimit:       defaultEnqueueCountLimit,
+		enqueueSizeLimit:        defaultEnqueueSizeLimit,
+		stateTimeout:            defaultStateTimeout,
+		stateTTL:                defaultStateTTL,
 	}
 
 	for _, option := range options {
@@ -85,12 +88,21 @@ func WithEnqueueSizeLimit(n int) Option {
 	}
 }
 
-func WithIngestConcurrency(n int) Option {
+func WithIngestTableConcurrency(n int) Option {
 	if n < 1 {
 		n = 1
 	}
 	return func(uc *UseCase) {
-		uc.ingestConcurrency = n
+		uc.ingestTableConcurrency = n
+	}
+}
+
+func WithIngestRecordConcurrency(n int) Option {
+	if n < 1 {
+		n = 1
+	}
+	return func(uc *UseCase) {
+		uc.ingestRecordConcurrency = n
 	}
 }
 

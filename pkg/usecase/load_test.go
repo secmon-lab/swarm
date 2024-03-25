@@ -146,12 +146,20 @@ func TestIngestRecordBigNum(t *testing.T) {
 		})
 	}
 
-	resp := gt.R1(usecase.IngestRecords(ctx, bqMock, dst, records)).NoError(t)
+	resp := gt.R1(usecase.IngestRecords(ctx, bqMock, dst, records, 10)).NoError(t)
 	gt.True(t, resp.Success)
 
 	gt.A(t, bqMock.Inserted).Length(4)
-	gt.A(t, bqMock.Inserted[0].Data).Length(256)
-	gt.A(t, bqMock.Inserted[1].Data).Length(256)
-	gt.A(t, bqMock.Inserted[2].Data).Length(256)
-	gt.A(t, bqMock.Inserted[3].Data).Length(233)
+	c256, c233 := 0, 0
+	for _, r := range bqMock.Inserted {
+		if len(r.Data) == 256 {
+			c256++
+		} else if len(r.Data) == 233 {
+			c233++
+		} else {
+			t.Errorf("Unexpected data length: %d", len(r.Data))
+		}
+	}
+	gt.N(t, c256).Equal(3)
+	gt.N(t, c233).Equal(1)
 }
