@@ -96,13 +96,13 @@ func (x *UseCase) Load(ctx context.Context, requests []*model.LoadRequest) error
 	errCh := make(chan error, len(logRecords))
 	logCh := make(chan *model.IngestLog, len(logRecords))
 	var wg sync.WaitGroup
-	for i := 0; i < x.ingestConcurrency; i++ {
+	for i := 0; i < x.ingestTableConcurrency; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 
 			for req := range reqCh {
-				log, err := ingestRecords(ctx, x.clients.BigQuery(), req.dst, req.records)
+				log, err := ingestRecords(ctx, x.clients.BigQuery(), req.dst, req.records, x.ingestRecordConcurrency)
 				logCh <- log
 				if err != nil {
 					log.Error = err.Error()
@@ -113,12 +113,13 @@ func (x *UseCase) Load(ctx context.Context, requests []*model.LoadRequest) error
 	}
 
 	wg.Wait()
-	close(errCh)
-	close(logCh)
 
+	close(logCh)
 	for log := range logCh {
 		loadLog.Ingests = append(loadLog.Ingests, log)
 	}
+
+	close(errCh)
 	for err := range errCh {
 		loadLog.Error = err.Error()
 		return err
@@ -275,7 +276,7 @@ func downloadCloudStorageObject(ctx context.Context, csClient interfaces.CloudSt
 
 const maxIngestLogCount = 256
 
-func ingestRecords(ctx context.Context, bq interfaces.BigQuery, bqDst model.BigQueryDest, records []*model.LogRecord) (*model.IngestLog, error) {
+func ingestRecords(ctx context.Context, bq interfaces.BigQuery, bqDst model.BigQueryDest, records []*model.LogRecord, concurrency int) (*model.IngestLog, error) {
 	ingestID, ctx := utils.CtxIngestID(ctx)
 
 	result := &model.IngestLog{
@@ -311,19 +312,47 @@ func ingestRecords(ctx context.Context, bq interfaces.BigQuery, bqDst model.BigQ
 	}
 	result.TableSchema = string(jsonSchema)
 
+	recordsCh := make(chan []*model.LogRecord, len(records)/maxIngestLogCount+1)
 	for i := 0; i < len(records); i += maxIngestLogCount {
 		end := min(i+maxIngestLogCount, len(records))
 		subRecords := records[i:end]
+		recordsCh <- subRecords
+	}
+	close(recordsCh)
 
-		data := make([]any, len(subRecords))
-		for i := range subRecords {
-			subRecords[i].IngestID = ingestID
-			data[i] = subRecords[i].Raw()
-		}
+	var wg sync.WaitGroup
+	errCh := make(chan error)
+	for i := 0; i < concurrency; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
 
-		if err := bq.Insert(ctx, bqDst.Dataset, bqDst.Table, finalized, data); err != nil {
-			return result, goerr.Wrap(err, "failed to insert data").With("dst", bqDst)
-		}
+			for subRecords := range recordsCh {
+				data := make([]any, len(subRecords))
+				for i := range subRecords {
+					subRecords[i].IngestID = ingestID
+					data[i] = subRecords[i].Raw()
+				}
+
+				startedAt := time.Now()
+				if err := bq.Insert(ctx, bqDst.Dataset, bqDst.Table, finalized, data); err != nil {
+					errCh <- goerr.Wrap(err, "failed to insert data").With("dst", bqDst)
+				}
+				utils.CtxLogger(ctx).Debug("inserted data", "dst", bqDst, "count", len(data), "duration", time.Since(startedAt))
+			}
+		}()
+	}
+
+	wg.Wait()
+	close(errCh)
+
+	var mErr *multierror.Error
+	for err := range errCh {
+		utils.HandleError(ctx, "failed to insert data", err)
+		mErr = multierror.Append(mErr, err)
+	}
+	if mErr != nil {
+		return result, mErr
 	}
 
 	result.Success = true
