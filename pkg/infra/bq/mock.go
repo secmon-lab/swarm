@@ -2,6 +2,7 @@ package bq
 
 import (
 	"context"
+	"sync"
 
 	"cloud.google.com/go/bigquery"
 	"github.com/m-mizutani/swarm/pkg/domain/interfaces"
@@ -65,6 +66,8 @@ func NewGeneralMock() *generalMock {
 type generalMock struct {
 	Inserted []MockInsertedData
 	Metadata bigquery.TableMetadata
+
+	insertMutex sync.Mutex
 }
 
 // CreateTable implements interfaces.BigQuery.
@@ -79,6 +82,9 @@ func (x *generalMock) GetMetadata(ctx context.Context, dataset types.BQDatasetID
 
 // Insert implements interfaces.BigQuery.
 func (x *generalMock) Insert(ctx context.Context, datasetID types.BQDatasetID, tableID types.BQTableID, schema bigquery.Schema, data []any) error {
+	x.insertMutex.Lock()
+	defer x.insertMutex.Unlock()
+
 	x.Inserted = append(x.Inserted, MockInsertedData{
 		DatasetID: datasetID,
 		TableID:   tableID,
