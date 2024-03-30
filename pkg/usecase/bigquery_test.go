@@ -18,7 +18,7 @@ func TestCreateOrUpdateTable(t *testing.T) {
 	bqDataset := utils.LoadEnv(t, "TEST_BIGQUERY_DATASET_ID")
 
 	ctx := context.Background()
-	bqClient := gt.R1(bq.New(ctx, bqProject)).NoError(t)
+	bqClient := gt.R1(bq.New(ctx, types.GoogleProjectID(bqProject))).NoError(t)
 
 	tableID := time.Now().Format("create_test_20060102_150405")
 

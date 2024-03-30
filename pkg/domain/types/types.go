@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"strings"
 
+	"cloud.google.com/go/bigquery"
 	"github.com/google/uuid"
 	"github.com/m-mizutani/goerr"
 )
@@ -54,6 +55,20 @@ const (
 	BQPartitionMonth BQPartition = "month"
 	BQPartitionYear  BQPartition = "year"
 )
+
+func (x BQPartition) Type() bigquery.TimePartitioningType {
+	mapping := map[BQPartition]bigquery.TimePartitioningType{
+		BQPartitionHour:  bigquery.HourPartitioningType,
+		BQPartitionDay:   bigquery.DayPartitioningType,
+		BQPartitionMonth: bigquery.MonthPartitioningType,
+		BQPartitionYear:  bigquery.YearPartitioningType,
+	}
+
+	if v, ok := mapping[x]; ok {
+		return v
+	}
+	return ""
+}
 
 type CSBucket string
 type CSObjectID string

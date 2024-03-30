@@ -11,7 +11,7 @@ import (
 )
 
 type BigQuery struct {
-	projectID string
+	projectID types.GoogleProjectID
 }
 
 func (x *BigQuery) Flags() []cli.Flag {
@@ -20,7 +20,7 @@ func (x *BigQuery) Flags() []cli.Flag {
 			Name:        "bigquery-project-id",
 			Usage:       "Google Cloud project ID for BigQuery",
 			EnvVars:     []string{"SWARM_BIGQUERY_PROJECT_ID"},
-			Destination: &x.projectID,
+			Destination: (*string)(&x.projectID),
 		},
 	}
 }
@@ -33,8 +33,12 @@ func (x *BigQuery) Configure(ctx context.Context) (*bq.Client, error) {
 	return bq.New(ctx, x.projectID)
 }
 
+func (x *BigQuery) ProjectID() types.GoogleProjectID {
+	return x.projectID
+}
+
 func (x *BigQuery) LogValue() slog.Value {
 	return slog.GroupValue(
-		slog.String("projectID", x.projectID),
+		slog.Any("projectID", x.projectID),
 	)
 }

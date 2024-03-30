@@ -28,7 +28,7 @@ func TestLoadDataByObject(t *testing.T) {
 	policyDir := utils.LoadEnv(t, "TEST_POLICY_DIR")
 
 	ctx := context.Background()
-	bqClient := gt.R1(bq.New(ctx, bqProject)).NoError(t)
+	bqClient := gt.R1(bq.New(ctx, types.GoogleProjectID(bqProject))).NoError(t)
 	csClient := gt.R1(cs.New(ctx)).NoError(t)
 	pClient := gt.R1(policy.New(policy.WithDir(policyDir))).NoError(t)
 	meta := model.NewMetadataConfig(types.BQDatasetID(bqDataset), types.BQTableID(tableID))

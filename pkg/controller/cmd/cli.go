@@ -33,6 +33,7 @@ func Run(argv []string) error {
 			clientCommand(),
 			schemaCommand(),
 			enqueueCommand(),
+			migrateCommand(),
 		},
 	}
 

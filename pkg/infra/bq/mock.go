@@ -59,31 +59,61 @@ func (x *Mock) UpdateTable(ctx context.Context, datasetID types.BQDatasetID, tab
 	return nil
 }
 
-func NewGeneralMock() *generalMock {
-	return &generalMock{}
+func NewGeneralMock() *GeneralMock {
+	return &GeneralMock{}
 }
 
-type generalMock struct {
-	Inserted []MockInsertedData
-	Metadata bigquery.TableMetadata
+type GeneralMock struct {
+	Inserted     []MockInsertedData
+	Metadata     []*bigquery.TableMetadata
+	CreatedTable []struct {
+		Dataset types.BQDatasetID
+		Table   types.BQTableID
+		MD      *bigquery.TableMetadata
+	}
+	UpdatedTable []struct {
+		Dataset types.BQDatasetID
+		Table   types.BQTableID
+		MD      bigquery.TableMetadataToUpdate
+		ETag    string
+	}
 
-	insertMutex sync.Mutex
+	Queries []string
+
+	mutex sync.Mutex
 }
 
 // CreateTable implements interfaces.BigQuery.
-func (*generalMock) CreateTable(ctx context.Context, dataset types.BQDatasetID, table types.BQTableID, md *bigquery.TableMetadata) error {
+func (x *GeneralMock) CreateTable(ctx context.Context, dataset types.BQDatasetID, table types.BQTableID, md *bigquery.TableMetadata) error {
+	x.mutex.Lock()
+	defer x.mutex.Unlock()
+
+	x.CreatedTable = append(x.CreatedTable, struct {
+		Dataset types.BQDatasetID
+		Table   types.BQTableID
+		MD      *bigquery.TableMetadata
+	}{Dataset: dataset, Table: table, MD: md})
+
 	return nil
 }
 
 // GetMetadata implements interfaces.BigQuery.
-func (x *generalMock) GetMetadata(ctx context.Context, dataset types.BQDatasetID, table types.BQTableID) (*bigquery.TableMetadata, error) {
-	return &x.Metadata, nil
+func (x *GeneralMock) GetMetadata(ctx context.Context, dataset types.BQDatasetID, table types.BQTableID) (*bigquery.TableMetadata, error) {
+	x.mutex.Lock()
+	defer x.mutex.Unlock()
+
+	if len(x.Metadata) == 0 {
+		return nil, nil
+	}
+	md := x.Metadata[0]
+	x.Metadata = x.Metadata[1:]
+	return md, nil
 }
 
 // Insert implements interfaces.BigQuery.
-func (x *generalMock) Insert(ctx context.Context, datasetID types.BQDatasetID, tableID types.BQTableID, schema bigquery.Schema, data []any) error {
-	x.insertMutex.Lock()
-	defer x.insertMutex.Unlock()
+func (x *GeneralMock) Insert(ctx context.Context, datasetID types.BQDatasetID, tableID types.BQTableID, schema bigquery.Schema, data []any) error {
+	x.mutex.Lock()
+	defer x.mutex.Unlock()
 
 	x.Inserted = append(x.Inserted, MockInsertedData{
 		DatasetID: datasetID,
@@ -95,12 +125,26 @@ func (x *generalMock) Insert(ctx context.Context, datasetID types.BQDatasetID, t
 }
 
 // Query implements interfaces.BigQuery.
-func (*generalMock) Query(ctx context.Context, query string) (interfaces.BigQueryIterator, error) {
-	panic("generalMock does not support Query method")
+func (x *GeneralMock) Query(ctx context.Context, query string) (interfaces.BigQueryIterator, error) {
+	x.mutex.Lock()
+	defer x.mutex.Unlock()
+
+	x.Queries = append(x.Queries, query)
+	return nil, nil
 }
 
 // UpdateTable implements interfaces.BigQuery.
-func (*generalMock) UpdateTable(ctx context.Context, dataset types.BQDatasetID, table types.BQTableID, md bigquery.TableMetadataToUpdate, eTag string) error {
+func (x *GeneralMock) UpdateTable(ctx context.Context, dataset types.BQDatasetID, table types.BQTableID, md bigquery.TableMetadataToUpdate, eTag string) error {
+	x.mutex.Lock()
+	defer x.mutex.Unlock()
+
+	x.UpdatedTable = append(x.UpdatedTable, struct {
+		Dataset types.BQDatasetID
+		Table   types.BQTableID
+		MD      bigquery.TableMetadataToUpdate
+		ETag    string
+	}{Dataset: dataset, Table: table, MD: md, ETag: eTag})
+
 	return nil
 }
 
@@ -111,4 +155,4 @@ type MockInsertedData struct {
 	Data      []any
 }
 
-var _ interfaces.BigQuery = &generalMock{}
+var _ interfaces.BigQuery = &GeneralMock{}
