@@ -18,6 +18,7 @@ var (
 	ErrNoPolicyResult      = goerr.New("no policy result")
 	ErrInvalidPolicyResult = goerr.New("invalid policy result")
 	ErrStateNotFound       = goerr.New("state not found")
+	ErrTableNotFound       = goerr.New("table not found")
 
 	// Assertion error
 	ErrAssertion = goerr.New("assertion error")

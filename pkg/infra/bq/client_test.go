@@ -51,7 +51,7 @@ func TestInsert(t *testing.T) {
 	log2 := model.LogRecord{ID: "p2", Timestamp: time.Now(), Data: d2}
 	log3 := model.LogRecord{ID: "p3", Timestamp: time.Now(), Data: d3}
 
-	client := gt.R1(bq.New(ctx, projectID)).NoError(t)
+	client := gt.R1(bq.New(ctx, types.GoogleProjectID(projectID))).NoError(t)
 
 	var merged bigquery.Schema
 	t.Run("Insert first data", func(t *testing.T) {
