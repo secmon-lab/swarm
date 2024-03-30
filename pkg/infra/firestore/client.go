@@ -59,6 +59,25 @@ func (x *Client) GetOrCreateState(ctx context.Context, msgType types.MsgType, in
 	return result, acquired, nil
 }
 
+// GetState returns the state of message processing.
+func (x *Client) GetState(ctx context.Context, msgType types.MsgType, id string) (*model.State, error) {
+	collection := string(msgType)
+	doc, err := x.client.Collection(collection).Doc(id).Get(ctx)
+	if err != nil {
+		if status.Code(err) == codes.NotFound {
+			return nil, goerr.Wrap(types.ErrStateNotFound, "state not found")
+		}
+		return nil, goerr.Wrap(err, "failed to get state")
+	}
+
+	var state model.State
+	if err := doc.DataTo(&state); err != nil {
+		return nil, goerr.Wrap(err, "failed to unmarshal state")
+	}
+
+	return &state, nil
+}
+
 // UpdateState updates the state of message processing.
 func (x *Client) UpdateState(ctx context.Context, msgType types.MsgType, id string, state types.MsgState, now time.Time) error {
 	collection := string(msgType)

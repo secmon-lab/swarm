@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"time"
 
 	"github.com/m-mizutani/swarm/pkg/domain/model"
 	"github.com/m-mizutani/swarm/pkg/domain/types"
@@ -14,6 +15,7 @@ type Mock struct {
 	MockEnqueue          func(ctx context.Context, req *model.EnqueueRequest) (*model.EnqueueResponse, error)
 	MockGetOrCreateState func(ctx context.Context, msgType types.MsgType, id string) (*model.State, bool, error)
 	MockUpdateState      func(ctx context.Context, msgType types.MsgType, id string, state types.MsgState) error
+	MockWaitState        func(ctx context.Context, msgType types.MsgType, id string, expiresAt time.Time) error
 }
 
 func (x *Mock) Load(ctx context.Context, req []*model.LoadRequest) error {
@@ -53,4 +55,11 @@ func (x Mock) UpdateState(ctx context.Context, msgType types.MsgType, id string,
 		return nil
 	}
 	return x.MockUpdateState(ctx, msgType, id, state)
+}
+
+func (x Mock) WaitState(ctx context.Context, msgType types.MsgType, id string, expiresAt time.Time) error {
+	if x.MockWaitState == nil {
+		return nil
+	}
+	return x.MockWaitState(ctx, msgType, id, expiresAt)
 }

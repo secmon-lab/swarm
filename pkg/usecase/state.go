@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"time"
 
 	"github.com/m-mizutani/swarm/pkg/domain/model"
 	"github.com/m-mizutani/swarm/pkg/domain/types"
@@ -39,4 +40,27 @@ func (x *UseCase) UpdateState(ctx context.Context, msgType types.MsgType, id str
 
 	now := utils.CtxTime(ctx)
 	return x.clients.Database().UpdateState(ctx, msgType, id, state, now)
+}
+
+func (x *UseCase) WaitState(ctx context.Context, msgType types.MsgType, id string, expiresAt time.Time) error {
+	// If database is not available, return nil
+	if x.clients.Database() == nil {
+		return nil
+	}
+
+	for {
+		state, err := x.clients.Database().GetState(ctx, msgType, id)
+		if err != nil {
+			return err
+		}
+		if state.State != types.MsgRunning {
+			return nil
+		}
+
+		if utils.CtxTime(ctx).After(expiresAt) {
+			return nil
+		}
+
+		time.Sleep(x.stateCheckInterval)
+	}
 }

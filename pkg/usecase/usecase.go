@@ -22,6 +22,9 @@ type UseCase struct {
 
 	// stateTTL is a duration to keep the state. After this duration, the state is deleted from database. This is used to avoid re-process of the same message.
 	stateTTL time.Duration
+
+	// stateCheckInterval is a duration to check state transition. This is used in WaitState method.
+	stateCheckInterval time.Duration
 }
 
 const (
@@ -32,6 +35,7 @@ const (
 	defaultIngestRecordConcurrency = 8
 	defaultStateTimeout            = 30 * time.Minute
 	defaultStateTTL                = 7 * 24 * time.Hour
+	defaultStateCheckInterval      = 10 * time.Second
 )
 
 func New(clients *infra.Clients, options ...Option) *UseCase {
@@ -44,6 +48,7 @@ func New(clients *infra.Clients, options ...Option) *UseCase {
 		enqueueSizeLimit:        defaultEnqueueSizeLimit,
 		stateTimeout:            defaultStateTimeout,
 		stateTTL:                defaultStateTTL,
+		stateCheckInterval:      defaultStateCheckInterval,
 	}
 
 	for _, option := range options {
@@ -115,5 +120,11 @@ func WithStateTimeout(d time.Duration) Option {
 func WithStateTTL(d time.Duration) Option {
 	return func(uc *UseCase) {
 		uc.stateTTL = d
+	}
+}
+
+func WithStateCheckInterval(d time.Duration) Option {
+	return func(uc *UseCase) {
+		uc.stateCheckInterval = d
 	}
 }

@@ -17,6 +17,7 @@ var (
 	ErrDataInsertion       = goerr.New("failed to insert data to bigquery")
 	ErrNoPolicyResult      = goerr.New("no policy result")
 	ErrInvalidPolicyResult = goerr.New("invalid policy result")
+	ErrStateNotFound       = goerr.New("state not found")
 
 	// Assertion error
 	ErrAssertion = goerr.New("assertion error")

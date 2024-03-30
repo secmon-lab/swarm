@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"runtime"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/m-mizutani/goerr"
@@ -127,14 +126,15 @@ func handlePubSubMessage(hdlr eventHandler) requestHandler {
 				return nil
 			}
 
-			d := time.Until(state.ExpiresAt) + time.Second
 			utils.CtxLogger(ctx).Info(
 				"skip pubsub message because it's already acquired, but need to sleep",
 				"pubsub_msg", msg,
-				"duration", d.String(),
 			)
 
-			time.Sleep(d)
+			if err := uc.WaitState(ctx, types.MsgPubSub, msg.Message.MessageID, state.ExpiresAt); err != nil {
+				return goerr.Wrap(err, "failed to wait state")
+			}
+
 			return types.ErrBlockingPubSub
 		}
 
