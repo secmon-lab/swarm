@@ -39,5 +39,6 @@ type CloudStorage interface {
 
 type Database interface {
 	GetOrCreateState(ctx context.Context, msgType types.MsgType, input *model.State) (*model.State, bool, error)
+	GetState(ctx context.Context, msgType types.MsgType, id string) (*model.State, error)
 	UpdateState(ctx context.Context, msgType types.MsgType, id string, state types.MsgState, now time.Time) error
 }

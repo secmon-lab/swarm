@@ -2,6 +2,7 @@ package interfaces
 
 import (
 	"context"
+	"time"
 
 	"github.com/m-mizutani/swarm/pkg/domain/model"
 	"github.com/m-mizutani/swarm/pkg/domain/types"
@@ -15,4 +16,5 @@ type UseCase interface {
 
 	GetOrCreateState(ctx context.Context, msgType types.MsgType, id string) (*model.State, bool, error)
 	UpdateState(ctx context.Context, msgType types.MsgType, id string, state types.MsgState) error
+	WaitState(ctx context.Context, msgType types.MsgType, id string, expiresAt time.Time) error
 }
