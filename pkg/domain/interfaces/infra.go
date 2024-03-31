@@ -17,10 +17,16 @@ type BigQueryIterator interface {
 
 type BigQuery interface {
 	Query(ctx context.Context, query string) (BigQueryIterator, error)
-	Insert(ctx context.Context, datasetID types.BQDatasetID, tableID types.BQTableID, schema bigquery.Schema, data []any) error
+	NewStream(ctx context.Context, datasetID types.BQDatasetID, tableID types.BQTableID, schema bigquery.Schema) (BigQueryStream, error)
+
 	GetMetadata(ctx context.Context, dataset types.BQDatasetID, table types.BQTableID) (*bigquery.TableMetadata, error)
 	UpdateTable(ctx context.Context, dataset types.BQDatasetID, table types.BQTableID, md bigquery.TableMetadataToUpdate, eTag string) error
 	CreateTable(ctx context.Context, dataset types.BQDatasetID, table types.BQTableID, md *bigquery.TableMetadata) error
+}
+
+type BigQueryStream interface {
+	Insert(ctx context.Context, data []any) error
+	Close() error
 }
 
 type PubSub interface {

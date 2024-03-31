@@ -24,5 +24,6 @@ var (
 	ErrAssertion = goerr.New("assertion error")
 
 	// Normal error
-	ErrBlockingPubSub = goerr.New("blocking pubsub ack")
+	ErrBlockingPubSub   = goerr.New("blocking pubsub ack")
+	ErrSchemaNotMatched = goerr.New("schema not matched")
 )

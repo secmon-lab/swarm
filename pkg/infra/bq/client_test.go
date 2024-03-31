@@ -3,6 +3,7 @@ package bq_test
 import (
 	"context"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/m-mizutani/swarm/pkg/domain/model"
 	"github.com/m-mizutani/swarm/pkg/domain/types"
 	"github.com/m-mizutani/swarm/pkg/infra/bq"
+	"github.com/m-mizutani/swarm/pkg/utils"
 )
 
 func TestInsert(t *testing.T) {
@@ -107,4 +109,71 @@ func TestInsert(t *testing.T) {
 			},
 		))
 	})
+}
+
+func TestConcurrency(t *testing.T) {
+	var (
+		projectID = types.GoogleProjectID(utils.LoadEnv(t, "TEST_BIGQUERY_PROJECT_ID"))
+		datasetID = types.BQDatasetID(utils.LoadEnv(t, "TEST_BIGQUERY_DATASET_ID"))
+	)
+
+	tableID := types.BQTableID(time.Now().Format("concurrency_20060102_150405"))
+
+	ctx := context.Background()
+	client := gt.R1(bq.New(ctx, projectID)).NoError(t)
+
+	const (
+		concurrency = 32
+		segSize     = 300
+		dataSetSize = 10000
+	)
+
+	type testData struct {
+		ID    string `json:"id" bigquery:"id"`
+		Index int    `json:"index" bigquery:"index"`
+	}
+	dataSet := make([][]testData, concurrency)
+
+	idx := 0
+	for i := 0; i < concurrency; i++ {
+		dataSet[i] = make([]testData, dataSetSize)
+		for j := 0; j < dataSetSize; j++ {
+			idx++
+			dataSet[i][j] = testData{
+				ID:    uuid.NewString(),
+				Index: idx,
+			}
+		}
+	}
+	t.Log("max index:", idx)
+
+	schema, err := bqs.Infer(testData{})
+	gt.NoError(t, err)
+	gt.NoError(t, client.CreateTable(ctx, datasetID, tableID, &bigquery.TableMetadata{
+		Schema: schema,
+	}))
+
+	var wg sync.WaitGroup
+	s := gt.R1(client.NewStream(ctx, datasetID, tableID, schema)).NoError(t)
+
+	for i := 0; i < concurrency; i++ {
+		wg.Add(1)
+		go func(d []testData) {
+			defer wg.Done()
+
+			for p := 0; p < len(d); p += segSize {
+				end := min(p+segSize, len(d))
+				recordSize := end - p
+				records := make([]any, recordSize)
+				for q := 0; q < recordSize; q++ {
+					records[q] = d[p+q]
+				}
+
+				gt.NoError(t, s.Insert(ctx, records))
+			}
+
+		}(dataSet[i])
+	}
+	wg.Wait()
+	gt.NoError(t, s.Close())
 }
