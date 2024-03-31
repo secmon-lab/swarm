@@ -88,6 +88,10 @@ func backoff(ctx context.Context, callback func(n int) (done bool, err error)) e
 	}
 }
 
+func (x *Client) NewStream(ctx context.Context, datasetID types.BQDatasetID, tableID types.BQTableID, schema bigquery.Schema) (interfaces.BigQueryStream, error) {
+	return newStream(ctx, x.mwClient, x.projectID, datasetID, tableID, schema)
+}
+
 func (x *Client) Insert(ctx context.Context, datasetID types.BQDatasetID, tableID types.BQTableID, schema bigquery.Schema, data []any) error {
 	convertedSchema, err := adapt.BQSchemaToStorageTableSchema(schema)
 	if err != nil {

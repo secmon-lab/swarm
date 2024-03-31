@@ -68,9 +68,13 @@ func (x *UseCase) Load(ctx context.Context, requests []*model.LoadRequest) error
 		if err != nil {
 			return err
 		}
+		s, err := x.clients.BigQuery().NewStream(ctx, x.metadata.Dataset(), x.metadata.Table(), schema)
+		if err != nil {
+			return err
+		}
 
 		defer func() {
-			if err := x.clients.BigQuery().Insert(ctx, x.metadata.Dataset(), x.metadata.Table(), schema, []any{loadLog.Raw()}); err != nil {
+			if err := s.Insert(ctx, []any{loadLog.Raw()}); err != nil {
 				utils.HandleError(ctx, "failed to insert request log", err)
 			}
 		}()
@@ -320,8 +324,15 @@ func ingestRecords(ctx context.Context, bq interfaces.BigQuery, bqDst model.BigQ
 	}
 	close(recordsCh)
 
-	var wg sync.WaitGroup
+	stream, err := bq.NewStream(ctx, bqDst.Dataset, bqDst.Table, finalized)
+	if err != nil {
+		return result, err
+	}
+	defer utils.SafeClose(stream)
+
 	errCh := make(chan error)
+
+	var wg sync.WaitGroup
 	for i := 0; i < concurrency; i++ {
 		wg.Add(1)
 		go func() {
@@ -335,8 +346,9 @@ func ingestRecords(ctx context.Context, bq interfaces.BigQuery, bqDst model.BigQ
 				}
 
 				startedAt := time.Now()
-				if err := bq.Insert(ctx, bqDst.Dataset, bqDst.Table, finalized, data); err != nil {
+				if err := stream.Insert(ctx, data); err != nil {
 					errCh <- goerr.Wrap(err, "failed to insert data").With("dst", bqDst)
+					return
 				}
 				utils.CtxLogger(ctx).Debug("inserted data", "dst", bqDst, "count", len(data), "duration", time.Since(startedAt))
 			}

@@ -116,10 +116,11 @@ func TestLoadData(t *testing.T) {
 				"dbb28938-5ed4-4774-8bb6-82ea916b21bb",
 				"d4dacb9d-9822-4217-b88d-d334bde89755",
 			}
-			gt.A(t, bqClient.Inserted).Length(2)
-			gt.A(t, bqClient.Inserted[0].Data).Length(4)
+			gt.A(t, bqClient.Streams).Length(2)
+			gt.A(t, bqClient.Streams[0].Inserted[0]).Length(1) // first stream is metadata
+			gt.A(t, bqClient.Streams[1].Inserted[0]).Length(4) // second stream is data
 			for i, id := range ids {
-				r := gt.Cast[*model.LogRecordRaw](t, bqClient.Inserted[0].Data[i])
+				r := gt.Cast[*model.LogRecordRaw](t, bqClient.Streams[1].Inserted[0][i])
 				gt.Equal(t, r.ID, id)
 			}
 		})
@@ -134,8 +135,9 @@ func TestIngestRecordBigNum(t *testing.T) {
 		Table:   "test-table",
 	}
 
+	const dataSize = 32000
 	var records []*model.LogRecord
-	for i := 0; i < 1001; i++ {
+	for i := 0; i < dataSize; i++ {
 		records = append(records, &model.LogRecord{
 			ID:        types.LogID(uuid.NewString()),
 			Timestamp: time.Now(),
@@ -146,20 +148,14 @@ func TestIngestRecordBigNum(t *testing.T) {
 		})
 	}
 
-	resp := gt.R1(usecase.IngestRecords(ctx, bqMock, dst, records, 10)).NoError(t)
+	resp := gt.R1(usecase.IngestRecords(ctx, bqMock, dst, records, 32)).NoError(t)
 	gt.True(t, resp.Success)
 
-	gt.A(t, bqMock.Inserted).Length(4)
-	c256, c233 := 0, 0
-	for _, r := range bqMock.Inserted {
-		if len(r.Data) == 256 {
-			c256++
-		} else if len(r.Data) == 233 {
-			c233++
-		} else {
-			t.Errorf("Unexpected data length: %d", len(r.Data))
+	gt.A(t, bqMock.Streams).Length(1).At(0, func(t testing.TB, stream *bq.MockStream) {
+		total := 0
+		for _, r := range stream.Inserted {
+			total += len(r)
 		}
-	}
-	gt.N(t, c256).Equal(3)
-	gt.N(t, c233).Equal(1)
+		gt.Equal(t, total, dataSize)
+	})
 }

@@ -27,6 +27,22 @@ func (x *Client) GetMetadata(ctx context.Context, dataset types.BQDatasetID, tab
 	return &bigquery.TableMetadata{}, nil
 }
 
+func (x *Client) NewStream(ctx context.Context, datasetID types.BQDatasetID, tableID types.BQTableID, schema bigquery.Schema) (interfaces.BigQueryStream, error) {
+	return &Stream{}, nil
+}
+
+// TODO: Implement Stream
+type Stream struct {
+}
+
+func (x *Stream) Insert(ctx context.Context, data []any) error {
+	return nil
+}
+
+func (x *Stream) Close() error {
+	return nil
+}
+
 // Insert implements interfaces.BigQuery. It writes data to a file in JSON format. The file name is "{outDir}/{dataset}.{table}.log". If the file does not exist, it creates a new file. If the file exists, it appends data to the file. The file is not uploaded to BigQuery.
 func (x *Client) Insert(ctx context.Context, datasetID types.BQDatasetID, tableID types.BQTableID, schema bigquery.Schema, data []any) error {
 	fname := fmt.Sprintf("%s.%s.log", datasetID, tableID)

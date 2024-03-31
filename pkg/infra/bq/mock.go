@@ -31,6 +31,27 @@ func NewMock() *Mock {
 
 var _ interfaces.BigQuery = &Mock{}
 
+type MockStream struct {
+	mutex    sync.Mutex
+	Inserted [][]any
+}
+
+func (x *MockStream) Insert(ctx context.Context, data []any) error {
+	x.mutex.Lock()
+	defer x.mutex.Unlock()
+
+	x.Inserted = append(x.Inserted, data)
+	return nil
+}
+
+func (x *MockStream) Close() error {
+	return nil
+}
+
+func (x *Mock) NewStream(ctx context.Context, datasetID types.BQDatasetID, tableID types.BQTableID, schema bigquery.Schema) (interfaces.BigQueryStream, error) {
+	return &MockStream{}, nil
+}
+
 func (x *Mock) Query(ctx context.Context, query string) (interfaces.BigQueryIterator, error) {
 	if x.MockQuery != nil {
 		return x.MockQuery(ctx, query)
@@ -64,8 +85,15 @@ func NewGeneralMock() *GeneralMock {
 }
 
 type GeneralMock struct {
-	Inserted     []MockInsertedData
-	Metadata     []*bigquery.TableMetadata
+	Metadata []*bigquery.TableMetadata
+
+	OpenedStream []struct {
+		Dataset types.BQDatasetID
+		Table   types.BQTableID
+		Schema  bigquery.Schema
+	}
+	Streams []*MockStream
+
 	CreatedTable []struct {
 		Dataset types.BQDatasetID
 		Table   types.BQTableID
@@ -110,18 +138,19 @@ func (x *GeneralMock) GetMetadata(ctx context.Context, dataset types.BQDatasetID
 	return md, nil
 }
 
-// Insert implements interfaces.BigQuery.
-func (x *GeneralMock) Insert(ctx context.Context, datasetID types.BQDatasetID, tableID types.BQTableID, schema bigquery.Schema, data []any) error {
+func (x *GeneralMock) NewStream(ctx context.Context, datasetID types.BQDatasetID, tableID types.BQTableID, schema bigquery.Schema) (interfaces.BigQueryStream, error) {
 	x.mutex.Lock()
 	defer x.mutex.Unlock()
 
-	x.Inserted = append(x.Inserted, MockInsertedData{
-		DatasetID: datasetID,
-		TableID:   tableID,
-		Schema:    schema,
-		Data:      data,
-	})
-	return nil
+	x.OpenedStream = append(x.OpenedStream, struct {
+		Dataset types.BQDatasetID
+		Table   types.BQTableID
+		Schema  bigquery.Schema
+	}{Dataset: datasetID, Table: tableID, Schema: schema})
+
+	s := &MockStream{}
+	x.Streams = append(x.Streams, s)
+	return s, nil
 }
 
 // Query implements interfaces.BigQuery.
