@@ -324,7 +324,6 @@ func ingestRecords(ctx context.Context, bq interfaces.BigQuery, bqDst model.BigQ
 	}
 	close(recordsCh)
 
-	var wg sync.WaitGroup
 	stream, err := bq.NewStream(ctx, bqDst.Dataset, bqDst.Table, finalized)
 	if err != nil {
 		return result, err
@@ -332,6 +331,8 @@ func ingestRecords(ctx context.Context, bq interfaces.BigQuery, bqDst model.BigQ
 	defer utils.SafeClose(stream)
 
 	errCh := make(chan error)
+
+	var wg sync.WaitGroup
 	for i := 0; i < concurrency; i++ {
 		wg.Add(1)
 		go func() {
@@ -347,6 +348,7 @@ func ingestRecords(ctx context.Context, bq interfaces.BigQuery, bqDst model.BigQ
 				startedAt := time.Now()
 				if err := stream.Insert(ctx, data); err != nil {
 					errCh <- goerr.Wrap(err, "failed to insert data").With("dst", bqDst)
+					return
 				}
 				utils.CtxLogger(ctx).Debug("inserted data", "dst", bqDst, "count", len(data), "duration", time.Since(startedAt))
 			}

@@ -32,10 +32,14 @@ func NewMock() *Mock {
 var _ interfaces.BigQuery = &Mock{}
 
 type MockStream struct {
+	mutex    sync.Mutex
 	Inserted [][]any
 }
 
 func (x *MockStream) Insert(ctx context.Context, data []any) error {
+	x.mutex.Lock()
+	defer x.mutex.Unlock()
+
 	x.Inserted = append(x.Inserted, data)
 	return nil
 }

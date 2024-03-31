@@ -135,8 +135,9 @@ func TestIngestRecordBigNum(t *testing.T) {
 		Table:   "test-table",
 	}
 
+	const dataSize = 32000
 	var records []*model.LogRecord
-	for i := 0; i < 1001; i++ {
+	for i := 0; i < dataSize; i++ {
 		records = append(records, &model.LogRecord{
 			ID:        types.LogID(uuid.NewString()),
 			Timestamp: time.Now(),
@@ -147,15 +148,14 @@ func TestIngestRecordBigNum(t *testing.T) {
 		})
 	}
 
-	resp := gt.R1(usecase.IngestRecords(ctx, bqMock, dst, records, 10)).NoError(t)
+	resp := gt.R1(usecase.IngestRecords(ctx, bqMock, dst, records, 32)).NoError(t)
 	gt.True(t, resp.Success)
 
 	gt.A(t, bqMock.Streams).Length(1).At(0, func(t testing.TB, stream *bq.MockStream) {
-		gt.A(t, stream.Inserted).Length(4)
 		total := 0
 		for _, r := range stream.Inserted {
 			total += len(r)
 		}
-		gt.Equal(t, total, 1001)
+		gt.Equal(t, total, dataSize)
 	})
 }
