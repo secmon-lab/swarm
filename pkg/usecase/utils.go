@@ -31,6 +31,10 @@ func clone(fieldName string, src reflect.Value) (reflect.Value, bool) {
 		dst := reflect.New(src.Type())
 		t := src.Type()
 
+		if t.NumField() == 0 {
+			return src, false
+		}
+
 		for i := 0; i < t.NumField(); i++ {
 			f := t.Field(i)
 			srcValue := src.Field(i)
@@ -70,6 +74,10 @@ func clone(fieldName string, src reflect.Value) (reflect.Value, bool) {
 		return dst.Elem(), true
 
 	case reflect.Map:
+		if src.Len() == 0 {
+			return src, false
+		}
+
 		dst := reflect.MakeMap(src.Type())
 		keys := src.MapKeys()
 		for i := 0; i < src.Len(); i++ {
