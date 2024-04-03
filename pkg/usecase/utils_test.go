@@ -51,6 +51,15 @@ func TestClone(t *testing.T) {
 			src:    []any{nil, "blue"},
 			expect: []any{"blue"},
 		},
+		"empty map": {
+			src: map[string]any{
+				"empty": map[string]any{},
+				"color": "blue",
+			},
+			expect: map[string]any{
+				"color": "blue",
+			},
+		},
 	}
 
 	for name, tc := range testCases {
