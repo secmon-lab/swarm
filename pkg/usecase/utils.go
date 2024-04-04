@@ -156,12 +156,12 @@ func clone(fieldName string, src reflect.Value) (reflect.Value, bool) {
 func schemaToJSON(schema bigquery.Schema) (string, error) {
 	jsonSchema, err := schema.ToJSONFields()
 	if err != nil {
-		return "", goerr.Wrap(err, "failed to convert schema to JSON").With("schema", schema)
+		return "", goerr.Wrap(err, "failed to convert schema to JSON")
 	}
 
 	var out bytes.Buffer
 	if err := json.Compact(&out, jsonSchema); err != nil {
-		return "", goerr.Wrap(err, "failed to compact JSON").With("schema", schema).With("json", string(jsonSchema))
+		return "", goerr.Wrap(err, "failed to compact JSON")
 	}
 
 	return out.String(), nil

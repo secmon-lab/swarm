@@ -84,7 +84,7 @@ func dumpSchema(dir string, dataset types.BQDatasetID, table types.BQTableID, sc
 
 	raw, err := schema.ToJSONFields()
 	if err != nil {
-		return goerr.Wrap(err, "failed to convert schema to JSON fields").With("schema", schema)
+		return goerr.Wrap(err, "failed to convert schema to JSON fields")
 	}
 
 	if _, err := fd.Write(raw); err != nil {
