@@ -37,7 +37,11 @@ func createOrUpdateTable(ctx context.Context, bq interfaces.BigQuery, datasetID 
 		Schema: merged,
 	}
 	utils.CtxLogger(ctx).Info("updating table schema", "datasetID", datasetID, "tableID", tableID)
-	return merged, bq.UpdateTable(ctx, datasetID, tableID, update, old.ETag)
+
+	if err := bq.UpdateTable(ctx, datasetID, tableID, update, old.ETag); err != nil {
+		return nil, goerr.Wrap(err, "Failed to update table").With("datasetID", datasetID).With("tableID", tableID).With("schema", merged)
+	}
+	return merged, nil
 }
 
 func inferSchema[T any](data []T) (bigquery.Schema, error) {
