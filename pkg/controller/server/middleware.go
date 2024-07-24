@@ -7,7 +7,6 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/dustin/go-humanize"
 	"github.com/m-mizutani/swarm/pkg/domain/interfaces"
 	"github.com/m-mizutani/swarm/pkg/domain/model"
 	"github.com/m-mizutani/swarm/pkg/utils"
@@ -94,10 +93,10 @@ func MemoryLimit(limit uint64, read ReadMemStatsFn) func(next http.Handler) http
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			var m runtime.MemStats
 			read(&m)
-			if m.Sys > limit {
+			if m.HeapAlloc > limit {
 				utils.CtxLogger(r.Context()).Warn("Memory limit exceeded",
-					"limit", humanize.Bytes(limit),
-					"sys", humanize.Bytes(m.Sys),
+					"limit", limit,
+					"memStats", m,
 				)
 				http.Error(w, "Memory limit exceeded", http.StatusTooManyRequests)
 				return
