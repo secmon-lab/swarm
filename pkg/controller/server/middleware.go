@@ -98,6 +98,9 @@ func MemoryLimit(limit uint64, read ReadMemStatsFn) func(next http.Handler) http
 				utils.CtxLogger(r.Context()).Warn("Memory limit exceeded",
 					"limit", humanize.Bytes(limit),
 					"sys", humanize.Bytes(m.Sys),
+					"heap", humanize.Bytes(m.HeapSys),
+					"stackInUse", humanize.Bytes(m.StackInuse),
+					"otherSys", humanize.Bytes(m.OtherSys),
 				)
 				http.Error(w, "Memory limit exceeded", http.StatusTooManyRequests)
 				return
