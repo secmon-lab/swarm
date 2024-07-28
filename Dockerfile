@@ -3,13 +3,13 @@ ENV CGO_ENABLED=0
 ARG BUILD_VERSION
 
 WORKDIR /app
-RUN go env -w GOMODCACHE=/go/pkg/mod
+RUN go env -w GOMODCACHE=/root/.cache/go-build
 
-RUN --mount=type=cache,target=/go/pkg/mod/,sharing=locked \
+RUN --mount=type=cache,target=/root/.cache/go-build,sharing=locked \
     --mount=type=bind,source=go.sum,target=go.sum \
     --mount=type=bind,source=go.mod,target=go.mod \
     go mod download -x
-RUN --mount=type=cache,source=/go/pkg/mod/,target=/go/pkg/mod/ \
+RUN --mount=type=cache,source=/root/.cache/go-build,target=/root/.cache/go-build \
     --mount=type=bind,target=. \
     go build -o /swarm \
         -ldflags "-X github.com/m-mizutani/swarm/pkg/domain/types.AppVersion=${BUILD_VERSION}" .
