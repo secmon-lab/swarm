@@ -23,7 +23,7 @@ jobs:
       - name: Go Build Cache for Docker
         uses: actions/cache@v3
         with:
-          path: go-build-cache
+          path: /root/.cache/go-build
           key: ${{ runner.os }}-go-build-cache-${{ hashFiles('go.sum') }}
 
       # - name: inject go-build-cache into docker
