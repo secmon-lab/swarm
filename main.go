@@ -8,6 +8,7 @@ import (
 
 // main is the entry point of the program
 func main() {
+	println("cache enablement test")
 	if err := cmd.Run(os.Args); err != nil {
 		os.Exit(1)
 	}
