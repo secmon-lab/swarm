@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/m-mizutani/swarm/pkg/domain/types"
-	"github.com/m-mizutani/swarm/pkg/infra/bq/writer"
+	"github.com/secmon-lab/swarm/pkg/domain/types"
+	"github.com/secmon-lab/swarm/pkg/infra/bq/writer"
 
 	"cloud.google.com/go/bigquery"
 	mw "cloud.google.com/go/bigquery/storage/managedwriter"

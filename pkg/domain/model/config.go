@@ -1,6 +1,6 @@
 package model
 
-import "github.com/m-mizutani/swarm/pkg/domain/types"
+import "github.com/secmon-lab/swarm/pkg/domain/types"
 
 type MetadataConfig struct {
 	dataset types.BQDatasetID

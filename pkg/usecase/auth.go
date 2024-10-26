@@ -6,10 +6,10 @@ import (
 	"log/slog"
 
 	"github.com/m-mizutani/goerr"
-	"github.com/m-mizutani/swarm/pkg/domain/model"
-	"github.com/m-mizutani/swarm/pkg/domain/types"
-	"github.com/m-mizutani/swarm/pkg/infra/policy"
-	"github.com/m-mizutani/swarm/pkg/utils"
+	"github.com/secmon-lab/swarm/pkg/domain/model"
+	"github.com/secmon-lab/swarm/pkg/domain/types"
+	"github.com/secmon-lab/swarm/pkg/infra/policy"
+	"github.com/secmon-lab/swarm/pkg/utils"
 )
 
 // UseCase is a usecase of authorization for HTTP access. It uses policy engine to evaluate the access control.

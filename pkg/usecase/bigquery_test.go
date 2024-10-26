@@ -7,10 +7,10 @@ import (
 
 	"cloud.google.com/go/bigquery"
 	"github.com/m-mizutani/gt"
-	"github.com/m-mizutani/swarm/pkg/domain/types"
-	"github.com/m-mizutani/swarm/pkg/infra/bq"
-	"github.com/m-mizutani/swarm/pkg/usecase"
-	"github.com/m-mizutani/swarm/pkg/utils"
+	"github.com/secmon-lab/swarm/pkg/domain/types"
+	"github.com/secmon-lab/swarm/pkg/infra/bq"
+	"github.com/secmon-lab/swarm/pkg/usecase"
+	"github.com/secmon-lab/swarm/pkg/utils"
 )
 
 func TestCreateOrUpdateTable(t *testing.T) {

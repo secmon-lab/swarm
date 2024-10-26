@@ -10,13 +10,13 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"github.com/m-mizutani/goerr"
-	"github.com/m-mizutani/swarm/pkg/controller/cmd/config"
-	"github.com/m-mizutani/swarm/pkg/controller/server"
-	"github.com/m-mizutani/swarm/pkg/infra"
-	"github.com/m-mizutani/swarm/pkg/infra/cs"
-	"github.com/m-mizutani/swarm/pkg/infra/firestore"
-	"github.com/m-mizutani/swarm/pkg/usecase"
-	"github.com/m-mizutani/swarm/pkg/utils"
+	"github.com/secmon-lab/swarm/pkg/controller/cmd/config"
+	"github.com/secmon-lab/swarm/pkg/controller/server"
+	"github.com/secmon-lab/swarm/pkg/infra"
+	"github.com/secmon-lab/swarm/pkg/infra/cs"
+	"github.com/secmon-lab/swarm/pkg/infra/firestore"
+	"github.com/secmon-lab/swarm/pkg/usecase"
+	"github.com/secmon-lab/swarm/pkg/utils"
 	"github.com/urfave/cli/v2"
 )
 

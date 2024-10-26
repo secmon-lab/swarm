@@ -1,4 +1,4 @@
-module github.com/m-mizutani/swarm
+module github.com/secmon-lab/swarm
 
 go 1.22.0
 

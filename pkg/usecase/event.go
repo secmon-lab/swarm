@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/m-mizutani/goerr"
-	"github.com/m-mizutani/swarm/pkg/domain/model"
-	"github.com/m-mizutani/swarm/pkg/domain/types"
+	"github.com/secmon-lab/swarm/pkg/domain/model"
+	"github.com/secmon-lab/swarm/pkg/domain/types"
 )
 
 func (x *UseCase) ObjectToSources(ctx context.Context, obj model.Object) ([]*model.Source, error) {

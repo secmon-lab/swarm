@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/m-mizutani/gt"
-	"github.com/m-mizutani/swarm/pkg/controller/cmd/config"
-	"github.com/m-mizutani/swarm/pkg/domain/model"
+	"github.com/secmon-lab/swarm/pkg/controller/cmd/config"
+	"github.com/secmon-lab/swarm/pkg/domain/model"
 	"github.com/urfave/cli/v2"
 )
 

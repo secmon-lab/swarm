@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/google/uuid"
-	"github.com/m-mizutani/swarm/pkg/domain/types"
+	"github.com/secmon-lab/swarm/pkg/domain/types"
 )
 
 type Dumper struct {

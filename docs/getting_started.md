@@ -16,7 +16,7 @@ First, let's try running it from the local environment. For actual deployment, p
 ## Installation
 
 ```bash
-go install github.com/m-mizutani/swarm@latest
+go install github.com/secmon-lab/swarm@latest
 ```
 
 ## Create rule files

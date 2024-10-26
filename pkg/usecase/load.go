@@ -10,11 +10,11 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/m-mizutani/goerr"
-	"github.com/m-mizutani/swarm/pkg/domain/interfaces"
-	"github.com/m-mizutani/swarm/pkg/domain/model"
-	"github.com/m-mizutani/swarm/pkg/domain/types"
-	"github.com/m-mizutani/swarm/pkg/infra"
-	"github.com/m-mizutani/swarm/pkg/utils"
+	"github.com/secmon-lab/swarm/pkg/domain/interfaces"
+	"github.com/secmon-lab/swarm/pkg/domain/model"
+	"github.com/secmon-lab/swarm/pkg/domain/types"
+	"github.com/secmon-lab/swarm/pkg/infra"
+	"github.com/secmon-lab/swarm/pkg/utils"
 )
 
 func (x *UseCase) LoadDataByObject(ctx context.Context, url types.CSUrl) error {

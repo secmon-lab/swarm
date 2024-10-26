@@ -5,8 +5,8 @@ import (
 	"log/slog"
 
 	"github.com/m-mizutani/goerr"
-	"github.com/m-mizutani/swarm/pkg/domain/types"
-	"github.com/m-mizutani/swarm/pkg/infra/bq"
+	"github.com/secmon-lab/swarm/pkg/domain/types"
+	"github.com/secmon-lab/swarm/pkg/infra/bq"
 	"github.com/urfave/cli/v2"
 )
 

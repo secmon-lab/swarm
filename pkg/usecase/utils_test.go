@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/m-mizutani/gt"
-	"github.com/m-mizutani/swarm/pkg/usecase"
+	"github.com/secmon-lab/swarm/pkg/usecase"
 )
 
 func TestClone(t *testing.T) {

@@ -6,9 +6,9 @@ import (
 	"cloud.google.com/go/bigquery"
 	"github.com/m-mizutani/bqs"
 	"github.com/m-mizutani/goerr"
-	"github.com/m-mizutani/swarm/pkg/domain/model"
-	"github.com/m-mizutani/swarm/pkg/domain/types"
-	"github.com/m-mizutani/swarm/pkg/utils"
+	"github.com/secmon-lab/swarm/pkg/domain/model"
+	"github.com/secmon-lab/swarm/pkg/domain/types"
+	"github.com/secmon-lab/swarm/pkg/utils"
 )
 
 func (x *UseCase) Migrate(ctx context.Context, src, dst *model.BigQueryDest, query string) error {

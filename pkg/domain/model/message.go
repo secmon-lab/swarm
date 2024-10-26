@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/m-mizutani/swarm/pkg/domain/types"
+	"github.com/secmon-lab/swarm/pkg/domain/types"
 )
 
 type EventarcDirectEvent struct {

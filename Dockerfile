@@ -9,7 +9,7 @@ COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/root/.cache/go-build go mod download
 
 COPY . /app
-RUN --mount=type=cache,target=/root/.cache/go-build go build -o swarm -ldflags "-X github.com/m-mizutani/swarm/pkg/domain/types.AppVersion=${BUILD_VERSION}" .
+RUN --mount=type=cache,target=/root/.cache/go-build go build -o swarm -ldflags "-X github.com/secmon-lab/swarm/pkg/domain/types.AppVersion=${BUILD_VERSION}" .
 
 FROM gcr.io/distroless/base:nonroot
 USER nonroot

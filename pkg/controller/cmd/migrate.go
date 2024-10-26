@@ -6,11 +6,11 @@ import (
 	"text/template"
 
 	"github.com/m-mizutani/goerr"
-	"github.com/m-mizutani/swarm/pkg/domain/model"
-	"github.com/m-mizutani/swarm/pkg/domain/types"
-	"github.com/m-mizutani/swarm/pkg/infra"
-	"github.com/m-mizutani/swarm/pkg/infra/bq"
-	"github.com/m-mizutani/swarm/pkg/usecase"
+	"github.com/secmon-lab/swarm/pkg/domain/model"
+	"github.com/secmon-lab/swarm/pkg/domain/types"
+	"github.com/secmon-lab/swarm/pkg/infra"
+	"github.com/secmon-lab/swarm/pkg/infra/bq"
+	"github.com/secmon-lab/swarm/pkg/usecase"
 	"github.com/urfave/cli/v2"
 )
 

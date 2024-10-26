@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 
 	"github.com/m-mizutani/goerr"
-	"github.com/m-mizutani/swarm/pkg/domain/interfaces"
-	"github.com/m-mizutani/swarm/pkg/domain/model"
+	"github.com/secmon-lab/swarm/pkg/domain/interfaces"
+	"github.com/secmon-lab/swarm/pkg/domain/model"
 )
 
 func handleSwarmEvent(ctx context.Context, uc interfaces.UseCase, data []byte) error {
