@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 
 	"github.com/m-mizutani/goerr"
-	"github.com/m-mizutani/swarm/pkg/domain/types"
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/topdown/print"
+	"github.com/secmon-lab/swarm/pkg/domain/types"
 )
 
 // Client is a policy engine client
