@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigquery"
+	"cloud.google.com/go/pubsub/apiv1/pubsubpb"
 	"cloud.google.com/go/storage"
 	"github.com/secmon-lab/swarm/pkg/domain/model"
 	"github.com/secmon-lab/swarm/pkg/domain/types"
@@ -29,8 +30,15 @@ type BigQueryStream interface {
 	Close() error
 }
 
-type PubSub interface {
+type PubSubTopic interface {
 	Publish(ctx context.Context, data []byte) (types.PubSubMessageID, error)
+}
+
+type PubSubSubscription interface {
+	Pull(ctx context.Context, subName string) ([]*pubsubpb.ReceivedMessage, error)
+	ModifyAckDeadline(ctx context.Context, subName string, ackID string, deadline time.Duration) error
+	Acknowledge(ctx context.Context, subName string, ackID string) error
+	Close() error
 }
 
 type CSObjectIterator interface {

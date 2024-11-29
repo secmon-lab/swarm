@@ -30,6 +30,7 @@ func Run(argv []string) error {
 		Commands: []*cli.Command{
 			ingestCommand(),
 			serveCommand(),
+			jobCommand(),
 			clientCommand(),
 			schemaCommand(),
 			enqueueCommand(),

@@ -42,7 +42,7 @@ func TestEnqueue(t *testing.T) {
 
 	uc := usecase.New(infra.New(
 		infra.WithCloudStorage(csMock),
-		infra.WithPubSub(pubsubMock),
+		infra.WithPubSubTopic(pubsubMock),
 	))
 
 	req := &model.EnqueueRequest{

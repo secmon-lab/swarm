@@ -86,7 +86,7 @@ func sumObjectSize(newOjb *model.Object, objects ...*model.Object) int64 {
 	return sum
 }
 
-func enqueueObjects(ctx context.Context, client interfaces.PubSub, objects []*model.Object) error {
+func enqueueObjects(ctx context.Context, client interfaces.PubSubTopic, objects []*model.Object) error {
 	msg := model.SwarmMessage{
 		Objects: objects,
 	}

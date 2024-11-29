@@ -31,8 +31,8 @@ func (x *PubSub) Flags() []cli.Flag {
 	}
 }
 
-func (x *PubSub) Configure(ctx context.Context) (*pubsub.Client, error) {
-	client, err := pubsub.New(ctx, x.projectID, x.topicID)
+func (x *PubSub) Configure(ctx context.Context) (*pubsub.TopicClient, error) {
+	client, err := pubsub.NewTopic(ctx, x.projectID, x.topicID)
 	if err != nil {
 		return nil, err
 	}
