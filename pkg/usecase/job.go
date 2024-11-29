@@ -13,7 +13,7 @@ import (
 )
 
 func (x *UseCase) RunWithSubscriptions(ctx context.Context, subscriptions []string) error {
-	utils.Logger().Info("starting job", "subscriptions", subscriptions)
+	utils.CtxLogger(ctx).Info("starting job", "subscriptions", subscriptions)
 
 	for _, subName := range subscriptions {
 		if err := x.runWithSubscription(ctx, subName); err != nil {
@@ -25,7 +25,7 @@ func (x *UseCase) RunWithSubscriptions(ctx context.Context, subscriptions []stri
 }
 
 func (x *UseCase) runWithSubscription(ctx context.Context, subName string) error {
-	utils.Logger().Info("starting job", "subscription", subName)
+	utils.CtxLogger(ctx).Info("starting job", "subscription", subName)
 
 	pullClient := x.clients.PubSubSubscription()
 	for {
@@ -34,7 +34,7 @@ func (x *UseCase) runWithSubscription(ctx context.Context, subName string) error
 			return err
 		}
 		if len(resp) == 0 {
-			utils.Logger().Info("no message in subscription", "subscription", subName)
+			utils.CtxLogger(ctx).Info("no message in subscription", "subscription", subName)
 			return nil
 		}
 
@@ -44,7 +44,7 @@ func (x *UseCase) runWithSubscription(ctx context.Context, subName string) error
 
 			go func() {
 				if err := loopExtendPubSubMessageDeadline(ctx, pullClient, subName, msg.AckId); err != nil {
-					utils.Logger().Error("failed to extend deadline", "error", err)
+					utils.CtxLogger(ctx).Error("failed to extend deadline", "error", err)
 				}
 			}()
 
@@ -75,7 +75,7 @@ func loopExtendPubSubMessageDeadline(ctx context.Context, client interfaces.PubS
 			return ctx.Err()
 
 		case <-tick.C:
-			utils.Logger().Info("extend deadline", "subscription", subName, "ackID", ackID)
+			utils.CtxLogger(ctx).Info("extend deadline", "subscription", subName, "ackID", ackID)
 			if err := client.ModifyAckDeadline(ctx, subName, ackID, extendDuration); err != nil {
 				return err
 			}
@@ -84,7 +84,7 @@ func loopExtendPubSubMessageDeadline(ctx context.Context, client interfaces.PubS
 }
 
 func (x *UseCase) processPubSubMessage(ctx context.Context, msg *pubsubpb.ReceivedMessage) error {
-	logger := utils.Logger()
+	logger := utils.CtxLogger(ctx)
 	logger.Info("processing message", "message", msg)
 
 	// Decode message
