@@ -75,12 +75,12 @@ func loopExtendPubSubMessageDeadline(ctx context.Context, client interfaces.PubS
 			return ctx.Err()
 
 		case <-tick.C:
+			utils.Logger().Info("extend deadline", "subscription", subName, "ackID", ackID)
 			if err := client.ModifyAckDeadline(ctx, subName, ackID, extendDuration); err != nil {
 				return err
 			}
 		}
 	}
-
 }
 
 func (x *UseCase) processPubSubMessage(ctx context.Context, msg *pubsubpb.ReceivedMessage) error {
