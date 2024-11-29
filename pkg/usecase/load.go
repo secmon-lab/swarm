@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"math"
+	"runtime"
 	"sync"
 	"time"
 
@@ -56,6 +57,7 @@ type ingestRequest struct {
 }
 
 func (x *UseCase) Load(ctx context.Context, requests []*model.LoadRequest) error {
+	defer runtime.GC()
 	reqID, ctx := utils.CtxRequestID(ctx)
 
 	loadLog := model.LoadLog{
