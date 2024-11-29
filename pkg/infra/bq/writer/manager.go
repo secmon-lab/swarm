@@ -10,8 +10,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/googleapis/gax-go/v2/apierror"
 	"github.com/m-mizutani/goerr"
-	"github.com/m-mizutani/swarm/pkg/domain/types"
-	"github.com/m-mizutani/swarm/pkg/utils"
+	"github.com/secmon-lab/swarm/pkg/domain/types"
+	"github.com/secmon-lab/swarm/pkg/utils"
 	"google.golang.org/protobuf/types/descriptorpb"
 )
 

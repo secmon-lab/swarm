@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/m-mizutani/gt"
-	"github.com/m-mizutani/swarm/pkg/controller/cmd"
+	"github.com/secmon-lab/swarm/pkg/controller/cmd"
 )
 
 func TestFlags(t *testing.T) {

@@ -10,11 +10,11 @@ import (
 	"testing"
 
 	"github.com/m-mizutani/gt"
-	"github.com/m-mizutani/swarm/pkg/controller/server"
-	"github.com/m-mizutani/swarm/pkg/domain/model"
-	"github.com/m-mizutani/swarm/pkg/infra"
-	"github.com/m-mizutani/swarm/pkg/infra/policy"
-	"github.com/m-mizutani/swarm/pkg/usecase"
+	"github.com/secmon-lab/swarm/pkg/controller/server"
+	"github.com/secmon-lab/swarm/pkg/domain/model"
+	"github.com/secmon-lab/swarm/pkg/infra"
+	"github.com/secmon-lab/swarm/pkg/infra/policy"
+	"github.com/secmon-lab/swarm/pkg/usecase"
 )
 
 func TestAuthorization(t *testing.T) {

@@ -7,8 +7,8 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/m-mizutani/goerr"
-	"github.com/m-mizutani/swarm/pkg/domain/interfaces"
-	"github.com/m-mizutani/swarm/pkg/domain/model"
+	"github.com/secmon-lab/swarm/pkg/domain/interfaces"
+	"github.com/secmon-lab/swarm/pkg/domain/model"
 	"google.golang.org/api/iterator"
 )
 

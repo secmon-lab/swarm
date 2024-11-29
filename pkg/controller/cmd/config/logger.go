@@ -10,7 +10,7 @@ import (
 	"github.com/m-mizutani/clog"
 	"github.com/m-mizutani/goerr"
 	"github.com/m-mizutani/masq"
-	"github.com/m-mizutani/swarm/pkg/domain/types"
+	"github.com/secmon-lab/swarm/pkg/domain/types"
 
 	"github.com/urfave/cli/v2"
 )

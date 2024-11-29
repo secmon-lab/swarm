@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/m-mizutani/gt"
-	"github.com/m-mizutani/swarm/pkg/domain/model"
+	"github.com/secmon-lab/swarm/pkg/domain/model"
 )
 
 //go:embed testdata/cloud_storage_event.json

@@ -7,12 +7,12 @@ import (
 	"time"
 
 	"github.com/m-mizutani/gt"
-	"github.com/m-mizutani/swarm/pkg/domain/interfaces"
-	"github.com/m-mizutani/swarm/pkg/domain/model"
-	"github.com/m-mizutani/swarm/pkg/domain/types"
-	"github.com/m-mizutani/swarm/pkg/infra"
-	"github.com/m-mizutani/swarm/pkg/usecase"
-	"github.com/m-mizutani/swarm/pkg/utils"
+	"github.com/secmon-lab/swarm/pkg/domain/interfaces"
+	"github.com/secmon-lab/swarm/pkg/domain/model"
+	"github.com/secmon-lab/swarm/pkg/domain/types"
+	"github.com/secmon-lab/swarm/pkg/infra"
+	"github.com/secmon-lab/swarm/pkg/usecase"
+	"github.com/secmon-lab/swarm/pkg/utils"
 )
 
 type mockFirestore struct {

@@ -3,8 +3,8 @@ package usecase
 import (
 	"time"
 
-	"github.com/m-mizutani/swarm/pkg/domain/model"
-	"github.com/m-mizutani/swarm/pkg/infra"
+	"github.com/secmon-lab/swarm/pkg/domain/model"
+	"github.com/secmon-lab/swarm/pkg/infra"
 )
 
 type UseCase struct {

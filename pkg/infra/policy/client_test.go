@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/m-mizutani/gt"
-	"github.com/m-mizutani/swarm/pkg/infra/policy"
+	"github.com/secmon-lab/swarm/pkg/infra/policy"
 )
 
 const examplePolicy = `

@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/m-mizutani/swarm/pkg/controller/cmd"
+	"github.com/secmon-lab/swarm/pkg/controller/cmd"
 )
 
 // main is the entry point of the program

@@ -4,8 +4,8 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/m-mizutani/swarm/pkg/domain/types"
-	"github.com/m-mizutani/swarm/pkg/infra/pubsub"
+	"github.com/secmon-lab/swarm/pkg/domain/types"
+	"github.com/secmon-lab/swarm/pkg/infra/pubsub"
 	"github.com/urfave/cli/v2"
 )
 

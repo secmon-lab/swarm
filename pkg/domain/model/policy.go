@@ -2,7 +2,7 @@ package model
 
 import (
 	"github.com/m-mizutani/goerr"
-	"github.com/m-mizutani/swarm/pkg/domain/types"
+	"github.com/secmon-lab/swarm/pkg/domain/types"
 )
 
 type AuthPolicyInput struct {

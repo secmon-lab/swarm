@@ -3,15 +3,15 @@ package cmd
 import (
 	"log/slog"
 
-	"github.com/m-mizutani/swarm/pkg/controller/cmd/config"
-	"github.com/m-mizutani/swarm/pkg/domain/interfaces"
-	"github.com/m-mizutani/swarm/pkg/domain/model"
-	"github.com/m-mizutani/swarm/pkg/domain/types"
-	"github.com/m-mizutani/swarm/pkg/infra"
-	"github.com/m-mizutani/swarm/pkg/infra/cs"
-	"github.com/m-mizutani/swarm/pkg/infra/pubsub"
-	"github.com/m-mizutani/swarm/pkg/usecase"
-	"github.com/m-mizutani/swarm/pkg/utils"
+	"github.com/secmon-lab/swarm/pkg/controller/cmd/config"
+	"github.com/secmon-lab/swarm/pkg/domain/interfaces"
+	"github.com/secmon-lab/swarm/pkg/domain/model"
+	"github.com/secmon-lab/swarm/pkg/domain/types"
+	"github.com/secmon-lab/swarm/pkg/infra"
+	"github.com/secmon-lab/swarm/pkg/infra/cs"
+	"github.com/secmon-lab/swarm/pkg/infra/pubsub"
+	"github.com/secmon-lab/swarm/pkg/usecase"
+	"github.com/secmon-lab/swarm/pkg/utils"
 	"github.com/urfave/cli/v2"
 )
 

@@ -3,7 +3,7 @@ package config
 import (
 	"log/slog"
 
-	"github.com/m-mizutani/swarm/pkg/infra/policy"
+	"github.com/secmon-lab/swarm/pkg/infra/policy"
 	"github.com/urfave/cli/v2"
 )
 

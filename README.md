@@ -1,8 +1,8 @@
-# swarm [![trivy](https://github.com/m-mizutani/swarm/actions/workflows/trivy.yml/badge.svg)](https://github.com/m-mizutani/swarm/actions/workflows/trivy.yml) [![test](https://github.com/m-mizutani/swarm/actions/workflows/test.yml/badge.svg)](https://github.com/m-mizutani/swarm/actions/workflows/test.yml) [![lint](https://github.com/m-mizutani/swarm/actions/workflows/lint.yml/badge.svg)](https://github.com/m-mizutani/swarm/actions/workflows/lint.yml) [![gosec](https://github.com/m-mizutani/swarm/actions/workflows/gosec.yml/badge.svg)](https://github.com/m-mizutani/swarm/actions/workflows/gosec.yml)
+# swarm [![trivy](https://github.com/secmon-lab/swarm/actions/workflows/trivy.yml/badge.svg)](https://github.com/secmon-lab/swarm/actions/workflows/trivy.yml) [![test](https://github.com/secmon-lab/swarm/actions/workflows/test.yml/badge.svg)](https://github.com/secmon-lab/swarm/actions/workflows/test.yml) [![lint](https://github.com/secmon-lab/swarm/actions/workflows/lint.yml/badge.svg)](https://github.com/secmon-lab/swarm/actions/workflows/lint.yml) [![gosec](https://github.com/secmon-lab/swarm/actions/workflows/gosec.yml/badge.svg)](https://github.com/secmon-lab/swarm/actions/workflows/gosec.yml)
 
 A tool to ingest log data with a dynamic schema from Google Cloud Storage into BigQuery.
 
-![swarm](https://github.com/m-mizutani/swarm/assets/605953/7b7ea371-f99a-4437-a26a-b6669bcffa97)
+![swarm](https://github.com/secmon-lab/swarm/assets/605953/7b7ea371-f99a-4437-a26a-b6669bcffa97)
 
 ## Features
 

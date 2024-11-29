@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/m-mizutani/swarm/pkg/domain/types"
+	"github.com/secmon-lab/swarm/pkg/domain/types"
 )
 
 type ctxRequestIDKey struct{}

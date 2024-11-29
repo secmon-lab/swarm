@@ -1,9 +1,9 @@
 package cmd
 
 import (
-	"github.com/m-mizutani/swarm/pkg/controller/cmd/config"
-	"github.com/m-mizutani/swarm/pkg/domain/types"
-	"github.com/m-mizutani/swarm/pkg/utils"
+	"github.com/secmon-lab/swarm/pkg/controller/cmd/config"
+	"github.com/secmon-lab/swarm/pkg/domain/types"
+	"github.com/secmon-lab/swarm/pkg/utils"
 
 	"github.com/urfave/cli/v2"
 )

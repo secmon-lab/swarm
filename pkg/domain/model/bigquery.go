@@ -3,7 +3,7 @@ package model
 import (
 	"time"
 
-	"github.com/m-mizutani/swarm/pkg/domain/types"
+	"github.com/secmon-lab/swarm/pkg/domain/types"
 )
 
 type LoadLog struct {
