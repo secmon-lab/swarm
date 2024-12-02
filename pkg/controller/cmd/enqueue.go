@@ -51,7 +51,7 @@ func enqueueCommand() *cli.Command {
 			},
 		}, pubsubCfg.Flags()),
 		Action: func(ctx *cli.Context) error {
-			var pubsubClient interfaces.PubSub
+			var pubsubClient interfaces.PubSubTopic
 
 			utils.Logger().Info("Start enqueue command", "output", outDir)
 
@@ -71,7 +71,7 @@ func enqueueCommand() *cli.Command {
 			}
 
 			clients := infra.New(
-				infra.WithPubSub(pubsubClient),
+				infra.WithPubSubTopic(pubsubClient),
 				infra.WithCloudStorage(csClient),
 			)
 			uc := usecase.New(clients)
