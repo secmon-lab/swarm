@@ -187,6 +187,7 @@ func isSchemaMismatchError(err error) bool {
 func insert(ctx context.Context, mwClient *mw.Client, tableParent string, data []any, dp *descriptorpb.DescriptorProto, md protoreflect.MessageDescriptor) error {
 	logger := utils.CtxLogger(ctx)
 
+	logger.Info("starting data ingestion", "count", len(data))
 	ms, err := mwClient.NewManagedStream(ctx,
 		mw.WithDestinationTable(tableParent),
 		mw.WithType(mw.PendingStream),
@@ -196,6 +197,8 @@ func insert(ctx context.Context, mwClient *mw.Client, tableParent string, data [
 		return goerr.Wrap(err, "failed to create managed stream")
 	}
 	defer utils.SafeClose(ms)
+
+	logger.Info("created managed stream", "stream_name", ms.StreamName())
 
 	const maxRows = 256
 	var respSet []*mw.AppendResult
@@ -207,6 +210,7 @@ func insert(ctx context.Context, mwClient *mw.Client, tableParent string, data [
 	}
 	var perfLogs []appendPerfLog
 
+	logger.Info("converting data to bytes", "count", len(data))
 	for s := 0; s < len(data); s += maxRows {
 		e := min(s+maxRows, len(data))
 		rows, err := convertDataToBytes(md, data[s:e])
