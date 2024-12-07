@@ -19,6 +19,7 @@ type BigQueryIterator interface {
 type BigQuery interface {
 	Query(ctx context.Context, query string) (BigQueryIterator, error)
 	NewStream(ctx context.Context, datasetID types.BQDatasetID, tableID types.BQTableID, schema bigquery.Schema) (BigQueryStream, error)
+	Insert(ctx context.Context, datasetID types.BQDatasetID, tableID types.BQTableID, schema bigquery.Schema, data []any) error
 
 	GetMetadata(ctx context.Context, dataset types.BQDatasetID, table types.BQTableID) (*bigquery.TableMetadata, error)
 	UpdateTable(ctx context.Context, dataset types.BQDatasetID, table types.BQTableID, md bigquery.TableMetadataToUpdate, eTag string) error

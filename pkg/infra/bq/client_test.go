@@ -28,16 +28,6 @@ func TestInsert(t *testing.T) {
 		t.Skip("TEST_BIGQUERY_DATASET_ID is not set")
 	}
 
-	datasetID := types.BQDatasetID(sDatasetID)
-	tableID := types.BQTableID(time.Now().Format("insert_20060102_150405"))
-
-	ctx := context.Background()
-	bqClient := gt.R1(bigquery.NewClient(ctx, projectID)).NoError(t)
-	gt.NoError(t, bqClient.
-		Dataset(datasetID.String()).
-		Table(tableID.String()).
-		Create(ctx, &bigquery.TableMetadata{}))
-
 	d1 := map[string]any{
 		"red":  uuid.NewString(),
 		"blue": uuid.NewString(),
@@ -47,18 +37,39 @@ func TestInsert(t *testing.T) {
 		"orange": uuid.NewString(),
 	}
 	d3 := map[string]any{
+		"red": uuid.NewString(),
+	}
+	d4 := map[string]any{
+		"orange": uuid.NewString(),
+	}
+	d5 := map[string]any{
 		"black": uuid.NewString(),
 	}
 	log1 := model.LogRecord{ID: "p1", Timestamp: time.Now(), Data: d1}
 	log2 := model.LogRecord{ID: "p2", Timestamp: time.Now(), Data: d2}
 	log3 := model.LogRecord{ID: "p3", Timestamp: time.Now(), Data: d3}
+	log4 := model.LogRecord{ID: "p4", Timestamp: time.Now(), Data: d4}
+	log5 := model.LogRecord{ID: "p5", Timestamp: time.Now(), Data: d5}
+
+	datasetID := types.BQDatasetID(sDatasetID)
+	tableID := types.BQTableID(time.Now().Format("insert_20060102_150405"))
+
+	var merged bigquery.Schema
+
+	ctx := context.Background()
+	bqClient := gt.R1(bigquery.NewClient(ctx, projectID)).NoError(t)
+	gt.NoError(t, bqClient.
+		Dataset(datasetID.String()).
+		Table(tableID.String()).
+		Create(ctx, &bigquery.TableMetadata{}))
 
 	client := gt.R1(bq.New(ctx, types.GoogleProjectID(projectID))).NoError(t)
 
-	var merged bigquery.Schema
 	t.Run("Insert first data", func(t *testing.T) {
 		merged = gt.R1(bqs.Merge(merged, gt.R1(bqs.Infer(log1)).NoError(t))).NoError(t)
 		merged = gt.R1(bqs.Merge(merged, gt.R1(bqs.Infer(log2)).NoError(t))).NoError(t)
+		merged = gt.R1(bqs.Merge(merged, gt.R1(bqs.Infer(log3)).NoError(t))).NoError(t)
+		merged = gt.R1(bqs.Merge(merged, gt.R1(bqs.Infer(log4)).NoError(t))).NoError(t)
 
 		md := gt.R1(
 			client.GetMetadata(ctx, datasetID, tableID),
@@ -76,6 +87,8 @@ func TestInsert(t *testing.T) {
 			[]any{
 				log1.Raw(),
 				log2.Raw(),
+				log3.Raw(),
+				log4.Raw(),
 			},
 		))
 	})
@@ -93,7 +106,7 @@ func TestInsert(t *testing.T) {
 			t.Log("retry to get schema")
 		}
 
-		merged = gt.R1(bqs.Merge(merged, gt.R1(bqs.Infer(log3)).NoError(t))).NoError(t)
+		merged = gt.R1(bqs.Merge(merged, gt.R1(bqs.Infer(log5)).NoError(t))).NoError(t)
 
 		updateMD := bigquery.TableMetadataToUpdate{
 			Schema: merged,
@@ -105,7 +118,7 @@ func TestInsert(t *testing.T) {
 			tableID,
 			merged,
 			[]any{
-				log3.Raw(),
+				log5.Raw(),
 			},
 		))
 	})
