@@ -198,6 +198,15 @@ func insert(ctx context.Context, mwClient *mw.Client, tableParent string, data [
 	defer utils.SafeClose(ms)
 
 	const maxRows = 256
+	var respSet []*mw.AppendResult
+
+	// TODO: Remove this struct after debugging
+	type appendPerfLog struct {
+		Count    int
+		Duration time.Duration
+	}
+	var perfLogs []appendPerfLog
+
 	for s := 0; s < len(data); s += maxRows {
 		e := min(s+maxRows, len(data))
 		rows, err := convertDataToBytes(md, data[s:e])
@@ -205,15 +214,21 @@ func insert(ctx context.Context, mwClient *mw.Client, tableParent string, data [
 			return goerr.Wrap(err, "failed to convert data to bytes")
 		}
 
+		ts := time.Now()
 		resp, err := ms.AppendRows(ctx, rows)
 		if err != nil {
 			return goerr.Wrap(err, "failed to append rows")
 		}
+		perfLogs = append(perfLogs, appendPerfLog{Count: len(rows), Duration: time.Since(ts)})
+		respSet = append(respSet, resp)
+	}
+	logger.Info("append performance", "logs", perfLogs)
+
+	for _, resp := range respSet {
 		if _, err := resp.GetResult(ctx); err != nil {
 			if isSchemaMismatchError(err) {
 				return errSchemaMismatch
 			}
-
 			return goerr.Wrap(err, "failed to get append result")
 		}
 	}
@@ -226,6 +241,8 @@ func insert(ctx context.Context, mwClient *mw.Client, tableParent string, data [
 	if n != int64(len(data)) {
 		logger.Warn("append count mismatch", "expected", len(data), "actual", n)
 	}
+
+	logger.Info("append rows", "count", n)
 
 	req := &storagepb.BatchCommitWriteStreamsRequest{
 		Parent:       mw.TableParentFromStreamName(ms.StreamName()),
