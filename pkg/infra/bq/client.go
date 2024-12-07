@@ -9,7 +9,6 @@ import (
 	"cloud.google.com/go/bigquery/storage/apiv1/storagepb"
 	mw "cloud.google.com/go/bigquery/storage/managedwriter"
 	"cloud.google.com/go/bigquery/storage/managedwriter/adapt"
-	"github.com/googleapis/gax-go/v2/apierror"
 	"github.com/m-mizutani/goerr"
 	"github.com/secmon-lab/swarm/pkg/domain/interfaces"
 	"github.com/secmon-lab/swarm/pkg/domain/types"
@@ -18,6 +17,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/dynamicpb"
 )
 
@@ -92,6 +92,35 @@ func (x *Client) NewStream(ctx context.Context, datasetID types.BQDatasetID, tab
 	return newStream(ctx, x.mwClient, x.projectID, datasetID, tableID, schema)
 }
 
+func convertDataToBytes(md protoreflect.MessageDescriptor, data []any) ([][]byte, error) {
+	var rows [][]byte
+	for _, v := range data {
+		message := dynamicpb.NewMessage(md)
+
+		raw, err := json.Marshal(v)
+		if err != nil {
+			return nil, goerr.Wrap(err, "failed to Marshal json message").With("v", v)
+		}
+
+		// First, json->proto message
+		err = protojson.Unmarshal(raw, message)
+		if err != nil {
+			return nil, goerr.Wrap(err, "failed to Unmarshal json message").With("raw", string(raw))
+		}
+		// Then, proto message -> bytes.
+		b, err := proto.Marshal(message)
+		if err != nil {
+			return nil, goerr.Wrap(err, "failed to Marshal proto message")
+		}
+
+		rows = append(rows, b)
+	}
+
+	return rows, nil
+}
+
+var errAppendCountMismatch = goerr.New("append count mismatch")
+
 func (x *Client) Insert(ctx context.Context, datasetID types.BQDatasetID, tableID types.BQTableID, schema bigquery.Schema, data []any) error {
 	convertedSchema, err := adapt.BQSchemaToStorageTableSchema(schema)
 	if err != nil {
@@ -111,71 +140,84 @@ func (x *Client) Insert(ctx context.Context, datasetID types.BQDatasetID, tableI
 		return goerr.Wrap(err, "failed to normalize descriptor")
 	}
 
-	// Write data to the stream
-	var rows [][]byte
-	for _, v := range data {
-		message := dynamicpb.NewMessage(messageDescriptor)
-
-		raw, err := json.Marshal(v)
-		if err != nil {
-			return goerr.Wrap(err, "failed to Marshal json message").With("v", v)
-		}
-
-		// First, json->proto message
-		err = protojson.Unmarshal(raw, message)
-		if err != nil {
-			return goerr.Wrap(err, "failed to Unmarshal json message").With("raw", string(raw))
-		}
-		// Then, proto message -> bytes.
-		b, err := proto.Marshal(message)
-		if err != nil {
-			return goerr.Wrap(err, "failed to Marshal proto message")
-		}
-
-		rows = append(rows, b)
-	}
-
 	// After updating BigQuery schema, there is a delay for propagation of the schema change. According to the following document, it takes about 10 minutes.
 	// https://issuetracker.google.com/issues/64329577#comment3
 	// Then, we wait for 15 minutes to avoid the schema propagation delay.
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Minute)
 	defer cancel()
-	if err := backoff(ctx, func(c int) (bool, error) {
-		ms, err := x.mwClient.NewManagedStream(ctx,
-			mw.WithDestinationTable(
-				mw.TableParentFromParts(
-					x.projectID.String(),
-					datasetID.String(),
-					tableID.String(),
-				),
-			),
-			// mw.WithType(mw.CommittedStream),
-			mw.WithSchemaDescriptor(descriptorProto),
-		)
-		if err != nil {
-			return true, goerr.Wrap(err, "failed to create managed stream")
-		}
-		defer utils.SafeClose(ms)
 
-		arResult, err := ms.AppendRows(ctx, rows)
-		if err != nil {
-			return true, goerr.Wrap(err, "failed to append rows")
-		}
+	tableParent := mw.TableParentFromParts(
+		x.projectID.String(),
+		datasetID.String(),
+		tableID.String(),
+	)
 
-		if _, err := arResult.FullResponse(ctx); err != nil {
-			if apiErr, ok := apierror.FromError(err); ok {
-				storageErr := &storagepb.StorageError{}
-				if e := apiErr.Details().ExtractProtoMessage(storageErr); e == nil && storageErr.Code == storagepb.StorageError_SCHEMA_MISMATCH_EXTRA_FIELDS {
-					utils.CtxLogger(ctx).Debug("retrying to append rows")
-					return false, nil
-				}
+	if err := backoff(ctx, func(n int) (bool, error) {
+		if err := insert(ctx, x.mwClient, tableParent, data, descriptorProto, messageDescriptor); err != nil {
+			if err == errAppendCountMismatch {
+				utils.CtxLogger(ctx).Warn("append count mismatch, retry", "n", n)
+				return false, nil
 			}
-			return true, goerr.Wrap(err, "failed to get append result")
+			return true, err
 		}
-
 		return true, nil
 	}); err != nil {
-		return err
+		return goerr.Wrap(err, "failed to insert data")
+	}
+	return nil
+}
+
+func insert(ctx context.Context, mwClient *mw.Client, tableParent string, data []any, dp *descriptorpb.DescriptorProto, md protoreflect.MessageDescriptor) error {
+	logger := utils.CtxLogger(ctx)
+
+	ms, err := mwClient.NewManagedStream(ctx,
+		mw.WithDestinationTable(tableParent),
+		mw.WithType(mw.PendingStream),
+		mw.WithSchemaDescriptor(dp),
+	)
+	if err != nil {
+		return goerr.Wrap(err, "failed to create managed stream")
+	}
+	defer utils.SafeClose(ms)
+
+	const maxRows = 256
+	for s := 0; s < len(data); s += maxRows {
+		e := min(s+maxRows, len(data))
+		rows, err := convertDataToBytes(md, data[s:e])
+		if err != nil {
+			return goerr.Wrap(err, "failed to convert data to bytes")
+		}
+
+		resp, err := ms.AppendRows(ctx, rows)
+		if err != nil {
+			return goerr.Wrap(err, "failed to append rows")
+		}
+		logger.Debug("appended rows", "rows", len(rows), "offset", s, "end", e, "response", resp)
+	}
+
+	n, err := ms.Finalize(ctx)
+	if err != nil {
+		return goerr.Wrap(err, "failed to finalize stream")
+	}
+	logger.Debug("finalized stream", "rows", n)
+
+	if n != int64(len(data)) {
+		return errAppendCountMismatch
+	}
+
+	req := &storagepb.BatchCommitWriteStreamsRequest{
+		Parent:       mw.TableParentFromStreamName(ms.StreamName()),
+		WriteStreams: []string{ms.StreamName()},
+	}
+	logger.Debug("commit write streams", "req", req)
+
+	resp, err := mwClient.BatchCommitWriteStreams(ctx, req)
+	if err != nil {
+		return goerr.Wrap(err, "failed to commit write streams")
+	}
+
+	if len(resp.GetStreamErrors()) > 0 {
+		return goerr.Wrap(err, "failed to commit write streams").With("errors", resp.GetStreamErrors())
 	}
 
 	return nil
