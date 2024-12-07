@@ -316,19 +316,13 @@ func ingestRecords(ctx context.Context, bq interfaces.BigQuery, bqDst model.BigQ
 	}
 	result.TableSchema = string(jsonSchema)
 
-	stream, err := bq.NewStream(ctx, bqDst.Dataset, bqDst.Table, finalized)
-	if err != nil {
-		return result, err
-	}
-	defer utils.SafeClose(stream)
-
 	startedAt := time.Now()
 	data := make([]any, len(records))
 	for i := range records {
 		records[i].IngestID = ingestID
 		data[i] = records[i].Raw()
 	}
-	if err := stream.Insert(ctx, data); err != nil {
+	if err := bq.Insert(ctx, bqDst.Dataset, bqDst.Table, finalized, data); err != nil {
 		return result, goerr.Wrap(err, "failed to insert data").With("dst", bqDst)
 	}
 	utils.CtxLogger(ctx).Debug("inserted data", "dst", bqDst, "count", len(data), "duration", time.Since(startedAt))
