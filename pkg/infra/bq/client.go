@@ -9,6 +9,7 @@ import (
 	"cloud.google.com/go/bigquery/storage/apiv1/storagepb"
 	mw "cloud.google.com/go/bigquery/storage/managedwriter"
 	"cloud.google.com/go/bigquery/storage/managedwriter/adapt"
+	"github.com/googleapis/gax-go/v2/apierror"
 	"github.com/m-mizutani/goerr"
 	"github.com/secmon-lab/swarm/pkg/domain/interfaces"
 	"github.com/secmon-lab/swarm/pkg/domain/types"
@@ -120,6 +121,7 @@ func convertDataToBytes(md protoreflect.MessageDescriptor, data []any) ([][]byte
 }
 
 var errAppendCountMismatch = goerr.New("append count mismatch")
+var errSchemaMismatch = goerr.New("schema mismatch")
 
 func (x *Client) Insert(ctx context.Context, datasetID types.BQDatasetID, tableID types.BQTableID, schema bigquery.Schema, data []any) error {
 	convertedSchema, err := adapt.BQSchemaToStorageTableSchema(schema)
@@ -158,6 +160,10 @@ func (x *Client) Insert(ctx context.Context, datasetID types.BQDatasetID, tableI
 				utils.CtxLogger(ctx).Warn("append count mismatch, retry", "n", n)
 				return false, nil
 			}
+			if err == errSchemaMismatch {
+				utils.CtxLogger(ctx).Warn("schema mismatch, retry", "n", n)
+				return false, nil
+			}
 			return true, err
 		}
 		return true, nil
@@ -165,6 +171,17 @@ func (x *Client) Insert(ctx context.Context, datasetID types.BQDatasetID, tableI
 		return goerr.Wrap(err, "failed to insert data")
 	}
 	return nil
+}
+
+func isSchemaMismatchError(err error) bool {
+	if apiErr, ok := apierror.FromError(err); ok {
+		storageErr := &storagepb.StorageError{}
+		if e := apiErr.Details().ExtractProtoMessage(storageErr); e == nil && storageErr.Code == storagepb.StorageError_SCHEMA_MISMATCH_EXTRA_FIELDS {
+			return true
+		}
+	}
+
+	return false
 }
 
 func insert(ctx context.Context, mwClient *mw.Client, tableParent string, data []any, dp *descriptorpb.DescriptorProto, md protoreflect.MessageDescriptor) error {
@@ -192,18 +209,22 @@ func insert(ctx context.Context, mwClient *mw.Client, tableParent string, data [
 		if err != nil {
 			return goerr.Wrap(err, "failed to append rows")
 		}
-		logger.Debug("appended rows", "rows", len(rows), "offset", s, "end", e, "response", resp)
+		if _, err := resp.GetResult(ctx); err != nil {
+			if isSchemaMismatchError(err) {
+				return errSchemaMismatch
+			}
+
+			return goerr.Wrap(err, "failed to get append result")
+		}
 	}
 
 	n, err := ms.Finalize(ctx)
 	if err != nil {
 		return goerr.Wrap(err, "failed to finalize stream")
 	}
-	logger.Debug("finalized stream", "rows", n)
 
 	if n != int64(len(data)) {
 		logger.Warn("append count mismatch", "expected", len(data), "actual", n)
-		return errAppendCountMismatch
 	}
 
 	req := &storagepb.BatchCommitWriteStreamsRequest{
@@ -216,9 +237,8 @@ func insert(ctx context.Context, mwClient *mw.Client, tableParent string, data [
 	if err != nil {
 		return goerr.Wrap(err, "failed to commit write streams")
 	}
-
-	if len(resp.GetStreamErrors()) > 0 {
-		return goerr.Wrap(err, "failed to commit write streams").With("errors", resp.GetStreamErrors())
+	if errs := resp.GetStreamErrors(); len(errs) > 0 {
+		return goerr.Wrap(err, "failed to commit write streams").With("errors", errs)
 	}
 
 	return nil
