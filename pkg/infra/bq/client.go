@@ -202,6 +202,7 @@ func insert(ctx context.Context, mwClient *mw.Client, tableParent string, data [
 	logger.Debug("finalized stream", "rows", n)
 
 	if n != int64(len(data)) {
+		logger.Warn("append count mismatch", "expected", len(data), "actual", n)
 		return errAppendCountMismatch
 	}
 
