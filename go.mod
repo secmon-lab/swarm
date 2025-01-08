@@ -16,7 +16,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/m-mizutani/bqs v0.0.6
 	github.com/m-mizutani/clog v0.0.7
-	github.com/m-mizutani/goerr v0.2.0
+	github.com/m-mizutani/goerr v1.0.0
 	github.com/m-mizutani/gt v0.0.8
 	github.com/m-mizutani/masq v0.1.8
 	github.com/open-policy-agent/opa v0.70.0
