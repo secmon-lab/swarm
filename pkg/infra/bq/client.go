@@ -18,6 +18,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/dynamicpb"
 )
 
@@ -92,6 +93,36 @@ func (x *Client) NewStream(ctx context.Context, datasetID types.BQDatasetID, tab
 	return newStream(ctx, x.mwClient, x.projectID, datasetID, tableID, schema)
 }
 
+func convertDataToBytes(md protoreflect.MessageDescriptor, data []any) ([][]byte, error) {
+	var rows [][]byte
+	for _, v := range data {
+		message := dynamicpb.NewMessage(md)
+
+		raw, err := json.Marshal(v)
+		if err != nil {
+			return nil, goerr.Wrap(err, "failed to Marshal json message").With("v", v)
+		}
+
+		// First, json->proto message
+		err = protojson.Unmarshal(raw, message)
+		if err != nil {
+			return nil, goerr.Wrap(err, "failed to Unmarshal json message").With("raw", string(raw))
+		}
+		// Then, proto message -> bytes.
+		b, err := proto.Marshal(message)
+		if err != nil {
+			return nil, goerr.Wrap(err, "failed to Marshal proto message")
+		}
+
+		rows = append(rows, b)
+	}
+
+	return rows, nil
+}
+
+var errAppendCountMismatch = goerr.New("append count mismatch")
+var errSchemaMismatch = goerr.New("schema mismatch")
+
 func (x *Client) Insert(ctx context.Context, datasetID types.BQDatasetID, tableID types.BQTableID, schema bigquery.Schema, data []any) error {
 	convertedSchema, err := adapt.BQSchemaToStorageTableSchema(schema)
 	if err != nil {
@@ -111,71 +142,124 @@ func (x *Client) Insert(ctx context.Context, datasetID types.BQDatasetID, tableI
 		return goerr.Wrap(err, "failed to normalize descriptor")
 	}
 
-	// Write data to the stream
-	var rows [][]byte
-	for _, v := range data {
-		message := dynamicpb.NewMessage(messageDescriptor)
-
-		raw, err := json.Marshal(v)
-		if err != nil {
-			return goerr.Wrap(err, "failed to Marshal json message").With("v", v)
-		}
-
-		// First, json->proto message
-		err = protojson.Unmarshal(raw, message)
-		if err != nil {
-			return goerr.Wrap(err, "failed to Unmarshal json message").With("raw", string(raw))
-		}
-		// Then, proto message -> bytes.
-		b, err := proto.Marshal(message)
-		if err != nil {
-			return goerr.Wrap(err, "failed to Marshal proto message")
-		}
-
-		rows = append(rows, b)
-	}
-
 	// After updating BigQuery schema, there is a delay for propagation of the schema change. According to the following document, it takes about 10 minutes.
 	// https://issuetracker.google.com/issues/64329577#comment3
 	// Then, we wait for 15 minutes to avoid the schema propagation delay.
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Minute)
 	defer cancel()
-	if err := backoff(ctx, func(c int) (bool, error) {
-		ms, err := x.mwClient.NewManagedStream(ctx,
-			mw.WithDestinationTable(
-				mw.TableParentFromParts(
-					x.projectID.String(),
-					datasetID.String(),
-					tableID.String(),
-				),
-			),
-			// mw.WithType(mw.CommittedStream),
-			mw.WithSchemaDescriptor(descriptorProto),
-		)
-		if err != nil {
-			return true, goerr.Wrap(err, "failed to create managed stream")
-		}
-		defer utils.SafeClose(ms)
 
-		arResult, err := ms.AppendRows(ctx, rows)
-		if err != nil {
-			return true, goerr.Wrap(err, "failed to append rows")
-		}
+	tableParent := mw.TableParentFromParts(
+		x.projectID.String(),
+		datasetID.String(),
+		tableID.String(),
+	)
 
-		if _, err := arResult.FullResponse(ctx); err != nil {
-			if apiErr, ok := apierror.FromError(err); ok {
-				storageErr := &storagepb.StorageError{}
-				if e := apiErr.Details().ExtractProtoMessage(storageErr); e == nil && storageErr.Code == storagepb.StorageError_SCHEMA_MISMATCH_EXTRA_FIELDS {
-					utils.CtxLogger(ctx).Debug("retrying to append rows")
-					return false, nil
-				}
+	if err := backoff(ctx, func(n int) (bool, error) {
+		if err := insert(ctx, x.mwClient, tableParent, data, descriptorProto, messageDescriptor); err != nil {
+			if err == errAppendCountMismatch {
+				utils.CtxLogger(ctx).Warn("append count mismatch, retry", "n", n)
+				return false, nil
 			}
-			return true, goerr.Wrap(err, "failed to get append result")
+			if err == errSchemaMismatch {
+				utils.CtxLogger(ctx).Warn("schema mismatch, retry", "n", n)
+				return false, nil
+			}
+			return true, err
 		}
-
 		return true, nil
 	}); err != nil {
-		return err
+		return goerr.Wrap(err, "failed to insert data")
+	}
+	return nil
+}
+
+func isSchemaMismatchError(err error) bool {
+	if apiErr, ok := apierror.FromError(err); ok {
+		storageErr := &storagepb.StorageError{}
+		if e := apiErr.Details().ExtractProtoMessage(storageErr); e == nil && storageErr.Code == storagepb.StorageError_SCHEMA_MISMATCH_EXTRA_FIELDS {
+			return true
+		}
+	}
+
+	return false
+}
+
+func insert(ctx context.Context, mwClient *mw.Client, tableParent string, data []any, dp *descriptorpb.DescriptorProto, md protoreflect.MessageDescriptor) error {
+	logger := utils.CtxLogger(ctx)
+
+	logger.Info("starting data ingestion", "count", len(data))
+	ms, err := mwClient.NewManagedStream(ctx,
+		mw.WithDestinationTable(tableParent),
+		mw.WithType(mw.PendingStream),
+		mw.WithSchemaDescriptor(dp),
+	)
+	if err != nil {
+		return goerr.Wrap(err, "failed to create managed stream")
+	}
+	defer utils.SafeClose(ms)
+
+	logger.Info("created managed stream", "stream_name", ms.StreamName())
+
+	const maxRows = 256
+	var respSet []*mw.AppendResult
+
+	// TODO: Remove this struct after debugging
+	type appendPerfLog struct {
+		Count    int
+		Duration time.Duration
+	}
+	var perfLogs []appendPerfLog
+
+	logger.Info("converting data to bytes", "count", len(data))
+	for s := 0; s < len(data); s += maxRows {
+		e := min(s+maxRows, len(data))
+		rows, err := convertDataToBytes(md, data[s:e])
+		if err != nil {
+			return goerr.Wrap(err, "failed to convert data to bytes")
+		}
+
+		ts := time.Now()
+		resp, err := ms.AppendRows(ctx, rows)
+		if err != nil {
+			return goerr.Wrap(err, "failed to append rows")
+		}
+		perfLogs = append(perfLogs, appendPerfLog{Count: len(rows), Duration: time.Since(ts)})
+		respSet = append(respSet, resp)
+	}
+	logger.Info("append performance", "logs", perfLogs)
+
+	for _, resp := range respSet {
+		if _, err := resp.GetResult(ctx); err != nil {
+			if isSchemaMismatchError(err) {
+				return errSchemaMismatch
+			}
+			return goerr.Wrap(err, "failed to get append result")
+		}
+	}
+
+	n, err := ms.Finalize(ctx)
+	if err != nil {
+		return goerr.Wrap(err, "failed to finalize stream")
+	}
+
+	if n != int64(len(data)) {
+		logger.Warn("append count mismatch", "expected", len(data), "actual", n)
+	}
+
+	logger.Info("append rows", "count", n)
+
+	req := &storagepb.BatchCommitWriteStreamsRequest{
+		Parent:       mw.TableParentFromStreamName(ms.StreamName()),
+		WriteStreams: []string{ms.StreamName()},
+	}
+	logger.Debug("commit write streams", "req", req)
+
+	resp, err := mwClient.BatchCommitWriteStreams(ctx, req)
+	if err != nil {
+		return goerr.Wrap(err, "failed to commit write streams")
+	}
+	if errs := resp.GetStreamErrors(); len(errs) > 0 {
+		return goerr.Wrap(err, "failed to commit write streams").With("errors", errs)
 	}
 
 	return nil

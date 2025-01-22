@@ -177,6 +177,10 @@ func (x *GeneralMock) UpdateTable(ctx context.Context, dataset types.BQDatasetID
 	return nil
 }
 
+func (x *GeneralMock) Insert(ctx context.Context, datasetID types.BQDatasetID, tableID types.BQTableID, schema bigquery.Schema, data []any) error {
+	return nil
+}
+
 type MockInsertedData struct {
 	DatasetID types.BQDatasetID
 	TableID   types.BQTableID

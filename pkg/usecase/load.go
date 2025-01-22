@@ -280,8 +280,6 @@ func downloadCloudStorageObject(ctx context.Context, csClient interfaces.CloudSt
 	return records, nil
 }
 
-const maxIngestLogCount = 256
-
 func ingestRecords(ctx context.Context, bq interfaces.BigQuery, bqDst model.BigQueryDest, records []*model.LogRecord, concurrency int) (*model.IngestLog, error) {
 	ingestID, ctx := utils.CtxIngestID(ctx)
 
@@ -318,56 +316,16 @@ func ingestRecords(ctx context.Context, bq interfaces.BigQuery, bqDst model.BigQ
 	}
 	result.TableSchema = string(jsonSchema)
 
-	recordsCh := make(chan []*model.LogRecord, len(records)/maxIngestLogCount+1)
-	for i := 0; i < len(records); i += maxIngestLogCount {
-		end := min(i+maxIngestLogCount, len(records))
-		subRecords := records[i:end]
-		recordsCh <- subRecords
+	startedAt := time.Now()
+	data := make([]any, len(records))
+	for i := range records {
+		records[i].IngestID = ingestID
+		data[i] = records[i].Raw()
 	}
-	close(recordsCh)
-
-	stream, err := bq.NewStream(ctx, bqDst.Dataset, bqDst.Table, finalized)
-	if err != nil {
-		return result, err
+	if err := bq.Insert(ctx, bqDst.Dataset, bqDst.Table, finalized, data); err != nil {
+		return result, goerr.Wrap(err, "failed to insert data").With("dst", bqDst)
 	}
-	defer utils.SafeClose(stream)
-
-	errCh := make(chan error)
-
-	var wg sync.WaitGroup
-	for i := 0; i < concurrency; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
-			for subRecords := range recordsCh {
-				data := make([]any, len(subRecords))
-				for i := range subRecords {
-					subRecords[i].IngestID = ingestID
-					data[i] = subRecords[i].Raw()
-				}
-
-				startedAt := time.Now()
-				if err := stream.Insert(ctx, data); err != nil {
-					errCh <- goerr.Wrap(err, "failed to insert data").With("dst", bqDst)
-					return
-				}
-				utils.CtxLogger(ctx).Debug("inserted data", "dst", bqDst, "count", len(data), "duration", time.Since(startedAt))
-			}
-		}()
-	}
-
-	wg.Wait()
-	close(errCh)
-
-	var mErr *multierror.Error
-	for err := range errCh {
-		utils.HandleError(ctx, "failed to insert data", err)
-		mErr = multierror.Append(mErr, err)
-	}
-	if mErr != nil {
-		return result, mErr
-	}
+	utils.CtxLogger(ctx).Debug("inserted data", "dst", bqDst, "count", len(data), "duration", time.Since(startedAt))
 
 	result.Success = true
 	return result, nil
