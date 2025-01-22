@@ -9,7 +9,7 @@ import (
 	mw "cloud.google.com/go/bigquery/storage/managedwriter"
 	"github.com/google/uuid"
 	"github.com/googleapis/gax-go/v2/apierror"
-	"github.com/m-mizutani/goerr"
+	"github.com/m-mizutani/goerr/v2"
 	"github.com/secmon-lab/swarm/pkg/domain/types"
 	"github.com/secmon-lab/swarm/pkg/utils"
 	"google.golang.org/protobuf/types/descriptorpb"
@@ -110,7 +110,7 @@ func (x *Manager) Close() error {
 	x.mutex.Lock()
 	defer x.mutex.Unlock()
 	if err := x.currentWriter.s.Close(); err != nil && err != io.EOF {
-		return goerr.Wrap(err, "failed to close managed stream").With("writer_id", x.currentWriter.id)
+		return goerr.Wrap(err, "failed to close managed stream", goerr.V("writer_id", x.currentWriter.id))
 	}
 	x.currentWriter = nil
 	x.closeWG.Wait()

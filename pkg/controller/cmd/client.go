@@ -3,7 +3,7 @@ package cmd
 import (
 	"net/http"
 
-	"github.com/m-mizutani/goerr"
+	"github.com/m-mizutani/goerr/v2"
 	"github.com/secmon-lab/swarm/pkg/utils"
 	"github.com/urfave/cli/v2"
 )
@@ -50,7 +50,7 @@ func clientHealthCheck() *cli.Command {
 			defer resp.Body.Close()
 
 			if resp.StatusCode != http.StatusOK {
-				return goerr.New("server is not healthy").With("status", resp.Status)
+				return goerr.New("server is not healthy", goerr.V("status", resp.Status))
 			}
 
 			utils.Logger().Info("Server is healthy")

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"log/slog"
 
-	"github.com/m-mizutani/goerr"
+	"github.com/m-mizutani/goerr/v2"
 	"github.com/secmon-lab/swarm/pkg/domain/model"
 	"github.com/secmon-lab/swarm/pkg/domain/types"
 	"github.com/secmon-lab/swarm/pkg/infra/policy"
@@ -26,7 +26,7 @@ func (x *UseCase) Authorize(ctx context.Context, input *model.AuthPolicyInput) e
 
 	if err := x.clients.Policy().Query(ctx, "data.auth", &input, &output, policy.WithRegoPrint(p)); err != nil {
 		if !errors.Is(err, types.ErrNoPolicyResult) {
-			return goerr.Wrap(err, "failed to evaluate policy").With("input", input)
+			return goerr.Wrap(err, "failed to evaluate policy", goerr.V("input", input))
 		}
 	}
 

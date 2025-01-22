@@ -17,6 +17,7 @@ require (
 	github.com/m-mizutani/bqs v0.0.6
 	github.com/m-mizutani/clog v0.0.7
 	github.com/m-mizutani/goerr v1.0.0
+	github.com/m-mizutani/goerr/v2 v2.0.0-alpha.2
 	github.com/m-mizutani/gt v0.0.8
 	github.com/m-mizutani/masq v0.1.8
 	github.com/open-policy-agent/opa v0.70.0

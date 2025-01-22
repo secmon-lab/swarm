@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
-	"github.com/m-mizutani/goerr"
+	"github.com/m-mizutani/goerr/v2"
 	"github.com/secmon-lab/swarm/pkg/controller/cmd/config"
 	"github.com/secmon-lab/swarm/pkg/controller/server"
 	"github.com/secmon-lab/swarm/pkg/infra"

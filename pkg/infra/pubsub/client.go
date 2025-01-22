@@ -7,7 +7,7 @@ import (
 	"cloud.google.com/go/pubsub"
 	apiv1 "cloud.google.com/go/pubsub/apiv1"
 	"cloud.google.com/go/pubsub/apiv1/pubsubpb"
-	"github.com/m-mizutani/goerr"
+	"github.com/m-mizutani/goerr/v2"
 	"github.com/secmon-lab/swarm/pkg/domain/types"
 )
 
@@ -63,7 +63,7 @@ func (x *SubscriptionClient) Pull(ctx context.Context, subName string) ([]*pubsu
 
 	res, err := x.client.Pull(ctx, &req)
 	if err != nil {
-		return nil, goerr.Wrap(err, "failed to pull message").With("subName", subName)
+		return nil, goerr.Wrap(err, "failed to pull message", goerr.V("subName", subName))
 	}
 
 	return res.ReceivedMessages, nil
@@ -76,7 +76,7 @@ func (x *SubscriptionClient) Acknowledge(ctx context.Context, subName string, ac
 	}
 
 	if err := x.client.Acknowledge(ctx, &req); err != nil {
-		return goerr.Wrap(err, "failed to acknowledge message").With("subName", subName).With("ackID", ackID)
+		return goerr.Wrap(err, "failed to acknowledge message", goerr.V("subName", subName), goerr.V("ackID", ackID))
 	}
 	return nil
 }
@@ -89,7 +89,11 @@ func (x *SubscriptionClient) ModifyAckDeadline(ctx context.Context, subName stri
 	}
 
 	if err := x.client.ModifyAckDeadline(ctx, &req); err != nil {
-		return goerr.Wrap(err, "failed to modify ack deadline").With("subName", subName).With("ackID", ackID).With("deadline", deadline)
+		return goerr.Wrap(err, "failed to modify ack deadline",
+			goerr.V("subName", subName),
+			goerr.V("ackID", ackID),
+			goerr.V("deadline", deadline),
+		)
 	}
 	return nil
 }

@@ -3,7 +3,7 @@ package usecase
 import (
 	"context"
 
-	"github.com/m-mizutani/goerr"
+	"github.com/m-mizutani/goerr/v2"
 	"github.com/secmon-lab/swarm/pkg/domain/model"
 	"github.com/secmon-lab/swarm/pkg/domain/types"
 )
@@ -14,7 +14,7 @@ func (x *UseCase) ObjectToSources(ctx context.Context, obj model.Object) ([]*mod
 		return nil, err
 	}
 	if len(event.Sources) == 0 {
-		return nil, goerr.Wrap(types.ErrNoPolicyResult, "no source in event").With("input", obj)
+		return nil, goerr.Wrap(types.ErrNoPolicyResult, "no source in event", goerr.V("input", obj))
 	}
 
 	return event.Sources, nil

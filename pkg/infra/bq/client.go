@@ -10,7 +10,7 @@ import (
 	mw "cloud.google.com/go/bigquery/storage/managedwriter"
 	"cloud.google.com/go/bigquery/storage/managedwriter/adapt"
 	"github.com/googleapis/gax-go/v2/apierror"
-	"github.com/m-mizutani/goerr"
+	"github.com/m-mizutani/goerr/v2"
 	"github.com/secmon-lab/swarm/pkg/domain/interfaces"
 	"github.com/secmon-lab/swarm/pkg/domain/types"
 	"github.com/secmon-lab/swarm/pkg/utils"
@@ -33,7 +33,7 @@ var _ interfaces.BigQuery = &Client{}
 func New(ctx context.Context, projectID types.GoogleProjectID) (*Client, error) {
 	mwClient, err := mw.NewClient(ctx, projectID.String())
 	if err != nil {
-		return nil, goerr.Wrap(err, "failed to create bigquery client").With("projectID", projectID)
+		return nil, goerr.Wrap(err, "failed to create bigquery client", goerr.V("projectID", projectID))
 	}
 
 	bqClient, err := bigquery.NewClient(ctx, projectID.String(),
@@ -41,7 +41,7 @@ func New(ctx context.Context, projectID types.GoogleProjectID) (*Client, error) 
 		mw.WithMultiplexPoolLimit(32),
 	)
 	if err != nil {
-		return nil, goerr.Wrap(err, "failed to create bigquery client").With("projectID", projectID)
+		return nil, goerr.Wrap(err, "failed to create bigquery client", goerr.V("projectID", projectID))
 	}
 
 	return &Client{
@@ -100,13 +100,13 @@ func convertDataToBytes(md protoreflect.MessageDescriptor, data []any) ([][]byte
 
 		raw, err := json.Marshal(v)
 		if err != nil {
-			return nil, goerr.Wrap(err, "failed to Marshal json message").With("v", v)
+			return nil, goerr.Wrap(err, "failed to Marshal json message", goerr.V("v", v))
 		}
 
 		// First, json->proto message
 		err = protojson.Unmarshal(raw, message)
 		if err != nil {
-			return nil, goerr.Wrap(err, "failed to Unmarshal json message").With("raw", string(raw))
+			return nil, goerr.Wrap(err, "failed to Unmarshal json message", goerr.V("raw", string(raw)))
 		}
 		// Then, proto message -> bytes.
 		b, err := proto.Marshal(message)
@@ -259,7 +259,7 @@ func insert(ctx context.Context, mwClient *mw.Client, tableParent string, data [
 		return goerr.Wrap(err, "failed to commit write streams")
 	}
 	if errs := resp.GetStreamErrors(); len(errs) > 0 {
-		return goerr.Wrap(err, "failed to commit write streams").With("errors", errs)
+		return goerr.Wrap(err, "failed to commit write streams", goerr.V("errors", errs))
 	}
 
 	return nil
@@ -281,7 +281,7 @@ func (x *Client) GetMetadata(ctx context.Context, dataset types.BQDatasetID, tab
 // UpdateSchema implements interfaces.BigQuery.
 func (x *Client) UpdateTable(ctx context.Context, dataset types.BQDatasetID, table types.BQTableID, md bigquery.TableMetadataToUpdate, eTag string) error {
 	if _, err := x.bqClient.Dataset(dataset.String()).Table(table.String()).Update(ctx, md, eTag); err != nil {
-		return goerr.Wrap(err, "failed to update table schema").With("dataset", dataset).With("table", table)
+		return goerr.Wrap(err, "failed to update table schema", goerr.V("dataset", dataset), goerr.V("table", table))
 	}
 
 	return nil
@@ -290,7 +290,7 @@ func (x *Client) UpdateTable(ctx context.Context, dataset types.BQDatasetID, tab
 // CreateTable implements interfaces.BigQuery.
 func (x *Client) CreateTable(ctx context.Context, dataset types.BQDatasetID, table types.BQTableID, md *bigquery.TableMetadata) error {
 	if err := x.bqClient.Dataset(dataset.String()).Table(table.String()).Create(ctx, md); err != nil {
-		return goerr.Wrap(err, "failed to create table").With("dataset", dataset).With("table", table)
+		return goerr.Wrap(err, "failed to create table", goerr.V("dataset", dataset), goerr.V("table", table))
 	}
 
 	return nil

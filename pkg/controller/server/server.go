@@ -10,7 +10,7 @@ import (
 	"runtime"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/m-mizutani/goerr"
+	"github.com/m-mizutani/goerr/v2"
 	"github.com/secmon-lab/swarm/pkg/domain/interfaces"
 	"github.com/secmon-lab/swarm/pkg/domain/model"
 	"github.com/secmon-lab/swarm/pkg/domain/types"
@@ -117,7 +117,7 @@ func handlePubSubMessage(hdlr eventHandler) requestHandler {
 			return goerr.Wrap(err, "failed to read body")
 		}
 		if err := json.Unmarshal(body, &msg); err != nil {
-			return goerr.Wrap(err, "failed to unmarshal body").With("body", string(body))
+			return goerr.Wrap(err, "failed to unmarshal body", goerr.V("body", string(body)))
 		}
 
 		ctx := r.Context()
@@ -152,7 +152,7 @@ func handlePubSubMessage(hdlr eventHandler) requestHandler {
 
 		data, err := base64.StdEncoding.DecodeString(msg.Message.Data)
 		if err != nil {
-			return goerr.Wrap(err, "failed to decode base64").With("data", msg.Message.Data)
+			return goerr.Wrap(err, "failed to decode base64", goerr.V("data", msg.Message.Data))
 		}
 
 		if err := hdlr(ctx, uc, data); err != nil {

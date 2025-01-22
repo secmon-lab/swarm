@@ -3,7 +3,7 @@ package cmd
 import (
 	"log/slog"
 
-	"github.com/m-mizutani/goerr"
+	"github.com/m-mizutani/goerr/v2"
 	"github.com/secmon-lab/swarm/pkg/controller/cmd/config"
 	"github.com/secmon-lab/swarm/pkg/infra"
 	"github.com/secmon-lab/swarm/pkg/infra/cs"

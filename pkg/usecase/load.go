@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-multierror"
-	"github.com/m-mizutani/goerr"
+	"github.com/m-mizutani/goerr/v2"
 	"github.com/secmon-lab/swarm/pkg/domain/interfaces"
 	"github.com/secmon-lab/swarm/pkg/domain/model"
 	"github.com/secmon-lab/swarm/pkg/domain/types"
@@ -21,7 +21,7 @@ import (
 func (x *UseCase) LoadDataByObject(ctx context.Context, url types.CSUrl) error {
 	bucket, objName, err := url.Parse()
 	if err != nil {
-		return goerr.Wrap(err, "failed to parse CloudStorage URL").With("url", url)
+		return goerr.Wrap(err, "failed to parse CloudStorage URL", goerr.V("url", url))
 	}
 
 	csObj := model.CloudStorageObject{
@@ -31,7 +31,7 @@ func (x *UseCase) LoadDataByObject(ctx context.Context, url types.CSUrl) error {
 
 	attrs, err := x.clients.CloudStorage().Attrs(ctx, csObj)
 	if err != nil {
-		return goerr.Wrap(err, "failed to get object attributes").With("obj", csObj)
+		return goerr.Wrap(err, "failed to get object attributes", goerr.V("obj", csObj))
 	}
 
 	obj := model.NewObjectFromCloudStorageAttrs(attrs)
@@ -254,14 +254,14 @@ func downloadCloudStorageObject(ctx context.Context, csClient interfaces.CloudSt
 	var records []any
 	reader, err := csClient.Open(ctx, *req.Object.CS)
 	if err != nil {
-		return nil, goerr.Wrap(err, "failed to open object").With("req", req)
+		return nil, goerr.Wrap(err, "failed to open object", goerr.V("req", req))
 	}
 	defer reader.Close()
 
 	if req.Source.Compress == types.GZIPComp {
 		r, err := gzip.NewReader(reader)
 		if err != nil {
-			return nil, goerr.Wrap(err, "failed to create gzip reader").With("req", req)
+			return nil, goerr.Wrap(err, "failed to create gzip reader", goerr.V("req", req))
 		}
 		defer r.Close()
 		reader = r
@@ -271,7 +271,7 @@ func downloadCloudStorageObject(ctx context.Context, csClient interfaces.CloudSt
 	for decoder.More() {
 		var record any
 		if err := decoder.Decode(&record); err != nil {
-			return nil, goerr.Wrap(err, "failed to decode JSON").With("req", req)
+			return nil, goerr.Wrap(err, "failed to decode JSON", goerr.V("req", req))
 		}
 
 		records = append(records, record)
@@ -307,7 +307,7 @@ func ingestRecords(ctx context.Context, bq interfaces.BigQuery, bqDst model.BigQ
 
 	finalized, err := createOrUpdateTable(ctx, bq, bqDst.Dataset, bqDst.Table, md)
 	if err != nil {
-		return result, goerr.Wrap(err, "failed to update schema").With("dst", bqDst)
+		return result, goerr.Wrap(err, "failed to update schema", goerr.V("dst", bqDst))
 	}
 
 	jsonSchema, err := schemaToJSON(schema)
@@ -323,7 +323,7 @@ func ingestRecords(ctx context.Context, bq interfaces.BigQuery, bqDst model.BigQ
 		data[i] = records[i].Raw()
 	}
 	if err := bq.Insert(ctx, bqDst.Dataset, bqDst.Table, finalized, data); err != nil {
-		return result, goerr.Wrap(err, "failed to insert data").With("dst", bqDst)
+		return result, goerr.Wrap(err, "failed to insert data", goerr.V("dst", bqDst))
 	}
 	utils.CtxLogger(ctx).Debug("inserted data", "dst", bqDst, "count", len(data), "duration", time.Since(startedAt))
 

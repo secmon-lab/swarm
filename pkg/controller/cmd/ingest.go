@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/m-mizutani/goerr"
+	"github.com/m-mizutani/goerr/v2"
 	"github.com/secmon-lab/swarm/pkg/controller/cmd/config"
 	"github.com/secmon-lab/swarm/pkg/domain/interfaces"
 	"github.com/secmon-lab/swarm/pkg/domain/types"
@@ -85,7 +85,7 @@ func ingestCommand() *cli.Command {
 
 			for _, url := range c.Args().Slice() {
 				if err := uc.LoadDataByObject(ctx, types.CSUrl(url)); err != nil {
-					return goerr.Wrap(err, "failed to load data").With("url", url)
+					return goerr.Wrap(err, "failed to load data", goerr.V("url", url))
 				}
 			}
 			return nil

@@ -7,7 +7,7 @@ import (
 	"unsafe"
 
 	"cloud.google.com/go/bigquery"
-	"github.com/m-mizutani/goerr"
+	"github.com/m-mizutani/goerr/v2"
 	"github.com/secmon-lab/swarm/pkg/domain/types"
 )
 
@@ -186,7 +186,7 @@ func buildBQMetadata(schema bigquery.Schema, pt types.BQPartition) (*bigquery.Ta
 				Type:  t,
 			}
 		} else {
-			return nil, goerr.Wrap(types.ErrInvalidPolicyResult, "invalid time unit").With("Partition", pt)
+			return nil, goerr.Wrap(types.ErrInvalidPolicyResult, "invalid time unit", goerr.V("Partition", pt))
 		}
 	}
 

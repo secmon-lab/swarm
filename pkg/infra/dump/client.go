@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 
 	"cloud.google.com/go/bigquery"
-	"github.com/m-mizutani/goerr"
+	"github.com/m-mizutani/goerr/v2"
 	"github.com/secmon-lab/swarm/pkg/domain/interfaces"
 	"github.com/secmon-lab/swarm/pkg/domain/types"
 )
@@ -49,14 +49,14 @@ func (x *Client) Insert(ctx context.Context, datasetID types.BQDatasetID, tableI
 	fpath := filepath.Join(x.outDir, fname)
 	fd, err := os.OpenFile(fpath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
-		return goerr.Wrap(err, "failed to create file").With("file", fpath)
+		return goerr.Wrap(err, "failed to create file", goerr.V("file", fpath))
 	}
 	defer fd.Close()
 
 	encoder := json.NewEncoder(fd)
 	for _, record := range data {
 		if err := encoder.Encode(record); err != nil {
-			return goerr.Wrap(err, "failed to encode record").With("record", record)
+			return goerr.Wrap(err, "failed to encode record", goerr.V("record", record))
 		}
 	}
 
@@ -78,7 +78,7 @@ func dumpSchema(dir string, dataset types.BQDatasetID, table types.BQTableID, sc
 	fpath := filepath.Join(dir, fname)
 	fd, err := os.Create(fpath)
 	if err != nil {
-		return goerr.Wrap(err, "failed to create file").With("file", fpath)
+		return goerr.Wrap(err, "failed to create file", goerr.V("file", fpath))
 	}
 	defer fd.Close()
 
@@ -88,7 +88,7 @@ func dumpSchema(dir string, dataset types.BQDatasetID, table types.BQTableID, sc
 	}
 
 	if _, err := fd.Write(raw); err != nil {
-		return goerr.Wrap(err, "failed to write schema").With("file", fpath)
+		return goerr.Wrap(err, "failed to write schema", goerr.V("file", fpath))
 	}
 
 	return nil

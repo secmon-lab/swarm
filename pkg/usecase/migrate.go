@@ -5,7 +5,7 @@ import (
 
 	"cloud.google.com/go/bigquery"
 	"github.com/m-mizutani/bqs"
-	"github.com/m-mizutani/goerr"
+	"github.com/m-mizutani/goerr/v2"
 	"github.com/secmon-lab/swarm/pkg/domain/model"
 	"github.com/secmon-lab/swarm/pkg/domain/types"
 	"github.com/secmon-lab/swarm/pkg/utils"
@@ -30,7 +30,9 @@ func (x *UseCase) migrateTable(ctx context.Context, src, dst *model.BigQueryDest
 		return err
 	}
 	if srcMD == nil {
-		return goerr.Wrap(types.ErrTableNotFound, "source table not found").With("dataset", src.Dataset).With("table", src.Table)
+		return goerr.Wrap(types.ErrTableNotFound, "source table not found",
+			goerr.V("dataset", src.Dataset),
+			goerr.V("table", src.Table))
 	}
 
 	dstMD, err := x.clients.BigQuery().GetMetadata(ctx, dst.Dataset, dst.Table)
