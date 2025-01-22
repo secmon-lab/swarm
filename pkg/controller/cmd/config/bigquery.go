@@ -4,7 +4,7 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/m-mizutani/goerr"
+	"github.com/m-mizutani/goerr/v2"
 	"github.com/secmon-lab/swarm/pkg/domain/types"
 	"github.com/secmon-lab/swarm/pkg/infra/bq"
 	"github.com/urfave/cli/v2"

@@ -1,7 +1,7 @@
 package model
 
 import (
-	"github.com/m-mizutani/goerr"
+	"github.com/m-mizutani/goerr/v2"
 	"github.com/secmon-lab/swarm/pkg/domain/types"
 )
 
@@ -34,7 +34,7 @@ func (x Source) Validate() error {
 	case types.JSONParser:
 		// OK
 	default:
-		return goerr.Wrap(types.ErrInvalidPolicyResult, "src.format is invalid").With("format", x.Parser)
+		return goerr.Wrap(types.ErrInvalidPolicyResult, "src.format is invalid", goerr.V("format", x.Parser))
 	}
 
 	if x.Schema == "" {
@@ -45,7 +45,7 @@ func (x Source) Validate() error {
 	case types.GZIPComp, "":
 		// OK
 	default:
-		return goerr.Wrap(types.ErrInvalidPolicyResult, "src.comp is invalid").With("comp", x.Compress)
+		return goerr.Wrap(types.ErrInvalidPolicyResult, "src.comp is invalid", goerr.V("comp", x.Compress))
 	}
 
 	return nil

@@ -1,6 +1,6 @@
 package types
 
-import "github.com/m-mizutani/goerr"
+import "github.com/m-mizutani/goerr/v2"
 
 var (
 	ErrInvalidOption = goerr.New("invalid option")

@@ -11,7 +11,7 @@ import (
 	"cloud.google.com/go/bigquery"
 	mw "cloud.google.com/go/bigquery/storage/managedwriter"
 	"cloud.google.com/go/bigquery/storage/managedwriter/adapt"
-	"github.com/m-mizutani/goerr"
+	"github.com/m-mizutani/goerr/v2"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -67,13 +67,13 @@ func (x *Stream) Insert(ctx context.Context, data []any) error {
 
 		raw, err := json.Marshal(v)
 		if err != nil {
-			return goerr.Wrap(err, "failed to Marshal json message").With("v", v)
+			return goerr.Wrap(err, "failed to Marshal json message", goerr.V("v", v))
 		}
 
 		// First, json->proto message
 		err = protojson.Unmarshal(raw, message)
 		if err != nil {
-			return goerr.Wrap(err, "failed to Unmarshal json message").With("raw", string(raw))
+			return goerr.Wrap(err, "failed to Unmarshal json message", goerr.V("raw", string(raw)))
 		}
 		// Then, proto message -> bytes.
 		b, err := proto.Marshal(message)

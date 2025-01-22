@@ -5,7 +5,7 @@ import (
 
 	"cloud.google.com/go/bigquery"
 	"github.com/m-mizutani/bqs"
-	"github.com/m-mizutani/goerr"
+	"github.com/m-mizutani/goerr/v2"
 	"github.com/secmon-lab/swarm/pkg/domain/interfaces"
 	"github.com/secmon-lab/swarm/pkg/domain/model"
 	"github.com/secmon-lab/swarm/pkg/domain/types"
@@ -15,7 +15,7 @@ import (
 func createOrUpdateTable(ctx context.Context, bq interfaces.BigQuery, datasetID types.BQDatasetID, tableID types.BQTableID, md *bigquery.TableMetadata) (bigquery.Schema, error) {
 	old, err := bq.GetMetadata(ctx, datasetID, tableID)
 	if err != nil {
-		return nil, goerr.Wrap(err, "Failed to get metadata").With("datasetID", datasetID).With("tableID", tableID)
+		return nil, goerr.Wrap(err, "Failed to get metadata", goerr.V("datasetID", datasetID), goerr.V("tableID", tableID))
 	}
 
 	if old == nil {
@@ -25,7 +25,7 @@ func createOrUpdateTable(ctx context.Context, bq interfaces.BigQuery, datasetID 
 
 	merged, err := bqs.Merge(old.Schema, md.Schema)
 	if err != nil {
-		return nil, goerr.Wrap(err, "Failed to merge schema").With("old", old.Schema).With("new", md.Schema)
+		return nil, goerr.Wrap(err, "Failed to merge schema", goerr.V("old", old.Schema), goerr.V("new", md.Schema))
 	}
 
 	// If schema is not changed, do nothing
@@ -39,7 +39,7 @@ func createOrUpdateTable(ctx context.Context, bq interfaces.BigQuery, datasetID 
 	utils.CtxLogger(ctx).Info("updating table schema", "datasetID", datasetID, "tableID", tableID)
 
 	if err := bq.UpdateTable(ctx, datasetID, tableID, update, old.ETag); err != nil {
-		return nil, goerr.Wrap(err, "Failed to update table").With("datasetID", datasetID).With("tableID", tableID)
+		return nil, goerr.Wrap(err, "Failed to update table", goerr.V("datasetID", datasetID), goerr.V("tableID", tableID))
 	}
 	return merged, nil
 }
@@ -49,7 +49,7 @@ func inferSchema[T any](data []T) (bigquery.Schema, error) {
 	for _, d := range data {
 		schema, err := bqs.Infer(d)
 		if err != nil {
-			return nil, goerr.Wrap(err, "Failed to infer schema").With("data", d)
+			return nil, goerr.Wrap(err, "Failed to infer schema", goerr.V("data", d))
 		}
 
 		merged, err = bqs.Merge(merged, schema)

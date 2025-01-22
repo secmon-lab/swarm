@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/m-mizutani/goerr"
+	"github.com/m-mizutani/goerr/v2"
 	"github.com/secmon-lab/swarm/pkg/domain/model"
 	"github.com/secmon-lab/swarm/pkg/domain/types"
 	"github.com/secmon-lab/swarm/pkg/utils"
@@ -65,7 +65,7 @@ func (x *UseCase) WaitState(ctx context.Context, msgType types.MsgType, id strin
 		}
 
 		if reqTime.Add(x.stateWaitTimeout).Before(utils.CtxTime(ctx)) {
-			return goerr.Wrap(types.ErrStateWaitTimeout, "State wait timeout").With("msgType", msgType).With("id", id)
+			return goerr.Wrap(types.ErrStateWaitTimeout, "State wait timeout", goerr.V("msgType", msgType), goerr.V("id", id))
 		}
 
 		time.Sleep(x.stateCheckInterval)

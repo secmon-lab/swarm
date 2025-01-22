@@ -8,7 +8,7 @@ import (
 
 	"cloud.google.com/go/bigquery"
 	"github.com/google/uuid"
-	"github.com/m-mizutani/goerr"
+	"github.com/m-mizutani/goerr/v2"
 )
 
 // RequestID is a unique identifier for each request
@@ -27,7 +27,7 @@ func NewIngestID() IngestID { return IngestID(uuid.NewString()) }
 func NewLogID(data any) (LogID, error) {
 	h := md5.New()
 	if err := json.NewEncoder(h).Encode(data); err != nil {
-		return "", goerr.Wrap(err, "failed to encode data for new ID").With("data", data)
+		return "", goerr.Wrap(err, "failed to encode data for new ID", goerr.V("data", data))
 	}
 
 	return LogID(hex.EncodeToString(h.Sum(nil))), nil
@@ -82,20 +82,20 @@ func (x CSUrl) Parse() (CSBucket, CSObjectID, error) {
 	// convert gs://bucket/object to (bucket, object)
 
 	if !strings.HasPrefix(string(x), "gs://") {
-		return "", "", goerr.Wrap(ErrInvalidOption, "CSUrl has invalid prefix").With("url", x)
+		return "", "", goerr.Wrap(ErrInvalidOption, "CSUrl has invalid prefix", goerr.V("url", x))
 	}
 
 	parts := strings.Split(string(x), "/")
 	if len(parts) < 4 {
-		return "", "", goerr.Wrap(ErrInvalidOption, "CSUrl is invalid").With("url", x)
+		return "", "", goerr.Wrap(ErrInvalidOption, "CSUrl is invalid", goerr.V("url", x))
 	}
 
 	if parts[0] != "gs:" || parts[1] != "" {
-		return "", "", goerr.Wrap(ErrInvalidOption, "CSUrl is invalid").With("url", x)
+		return "", "", goerr.Wrap(ErrInvalidOption, "CSUrl is invalid", goerr.V("url", x))
 	}
 
 	if parts[2] == "" {
-		return "", "", goerr.Wrap(ErrInvalidOption, "CSUrl has empty bucket").With("url", x)
+		return "", "", goerr.Wrap(ErrInvalidOption, "CSUrl has empty bucket", goerr.V("url", x))
 	}
 
 	bucket := CSBucket(parts[2])
@@ -122,7 +122,7 @@ func (x ObjectURL) Type() ObjectType {
 
 func (x ObjectURL) ParseAsCloudStorage() (CSBucket, CSObjectID, error) {
 	if x.Type() != CloudStorageObject {
-		return "", "", goerr.Wrap(ErrInvalidOption, "ObjectURL is not CloudStorage").With("url", x)
+		return "", "", goerr.Wrap(ErrInvalidOption, "ObjectURL is not CloudStorage", goerr.V("url", x))
 	}
 
 	return CSUrl(x).Parse()

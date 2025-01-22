@@ -8,7 +8,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/m-mizutani/clog"
-	"github.com/m-mizutani/goerr"
+	"github.com/m-mizutani/goerr/v2"
 	"github.com/m-mizutani/masq"
 	"github.com/secmon-lab/swarm/pkg/domain/types"
 
@@ -63,7 +63,7 @@ func (x *Logger) Configure() (*slog.Logger, error) {
 	default:
 		f, err := os.OpenFile(filepath.Clean(x.output), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
 		if err != nil {
-			return nil, goerr.Wrap(err, "Failed to open log file").With("path", x.output)
+			return nil, goerr.Wrap(err, "Failed to open log file", goerr.V("path", x.output))
 		}
 		output = f
 	}
@@ -81,7 +81,7 @@ func (x *Logger) Configure() (*slog.Logger, error) {
 	}
 	level, ok := levelMap[x.level]
 	if !ok {
-		return nil, goerr.Wrap(types.ErrInvalidOption, "Invalid log level").With("level", x.level)
+		return nil, goerr.Wrap(types.ErrInvalidOption, "Invalid log level", goerr.V("level", x.level))
 	}
 
 	// Log format
@@ -117,7 +117,7 @@ func (x *Logger) Configure() (*slog.Logger, error) {
 		})
 
 	default:
-		return nil, goerr.Wrap(types.ErrInvalidOption, "Invalid log format").With("format", x.format)
+		return nil, goerr.Wrap(types.ErrInvalidOption, "Invalid log format", goerr.V("format", x.format))
 	}
 
 	return slog.New(handler), nil

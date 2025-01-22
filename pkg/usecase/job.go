@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/pubsub/apiv1/pubsubpb"
-	"github.com/m-mizutani/goerr"
+	"github.com/m-mizutani/goerr/v2"
 	"github.com/secmon-lab/swarm/pkg/domain/interfaces"
 	"github.com/secmon-lab/swarm/pkg/domain/model"
 	"github.com/secmon-lab/swarm/pkg/utils"
@@ -97,7 +97,7 @@ func (x *UseCase) processPubSubMessage(ctx context.Context, msg *pubsubpb.Receiv
 	obj := event.ToObject()
 	sources, err := x.ObjectToSources(ctx, obj)
 	if err != nil {
-		return goerr.Wrap(err, "failed to convert event to sources").With("event", event)
+		return goerr.Wrap(err, "failed to convert event to sources", goerr.V("event", event))
 	}
 
 	loadReq := make([]*model.LoadRequest, len(sources))
@@ -109,7 +109,7 @@ func (x *UseCase) processPubSubMessage(ctx context.Context, msg *pubsubpb.Receiv
 	}
 
 	if err := x.Load(ctx, loadReq); err != nil {
-		return goerr.Wrap(err).With("event", event)
+		return goerr.Wrap(err, "failed to load", goerr.V("event", event))
 	}
 
 	return nil

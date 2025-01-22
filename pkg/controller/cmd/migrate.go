@@ -5,7 +5,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/m-mizutani/goerr"
+	"github.com/m-mizutani/goerr/v2"
 	"github.com/secmon-lab/swarm/pkg/domain/model"
 	"github.com/secmon-lab/swarm/pkg/domain/types"
 	"github.com/secmon-lab/swarm/pkg/infra"
@@ -125,7 +125,7 @@ type bqTable struct {
 func parseBigQueryTableID(id string) (*bqTable, error) {
 	parts := strings.Split(id, ".")
 	if len(parts) != 3 {
-		return nil, goerr.Wrap(types.ErrInvalidOption, "invalid table ID").With("id", id)
+		return nil, goerr.Wrap(types.ErrInvalidOption, "invalid table ID", goerr.V("id", id))
 	}
 
 	return &bqTable{
