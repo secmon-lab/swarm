@@ -208,12 +208,13 @@ func importSource(ctx context.Context, clients *infra.Clients, req *model.LoadRe
 		result.log.RowCount++
 
 		var output model.SchemaPolicyOutput
-		if err := clients.Policy().Query(ctx, req.Source.Schema.Query(), row, &output); err != nil {
+		query := req.Source.Schema.Query()
+		if err := clients.Policy().Query(ctx, query, row, &output); err != nil {
 			return result, err
 		}
 
 		if len(output.Logs) == 0 {
-			utils.CtxLogger(ctx).Warn("No log data in schema policy", "req", req, "record", row)
+			utils.CtxLogger(ctx).Warn("No log data in schema policy", "req", req, "record", row, "query", query)
 			continue
 		}
 
