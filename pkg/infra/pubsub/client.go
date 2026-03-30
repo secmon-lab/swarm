@@ -34,9 +34,9 @@ func (x *TopicClient) Publish(ctx context.Context, data []byte) (types.PubSubMes
 	return types.PubSubMessageID(msgID), err
 }
 
-func (x *TopicClient) Close() {
+func (x *TopicClient) Close() error {
 	x.publisher.Stop()
-	_ = x.client.Close()
+	return x.client.Close()
 }
 
 type SubscriptionClient struct {
