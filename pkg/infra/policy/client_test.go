@@ -14,7 +14,7 @@ package test
 
 default allow = false
 
-allow {
+allow if {
 	input.role == "admin"
 }
 `
@@ -62,7 +62,7 @@ func TestClient_New_WithFile(t *testing.T) {
 	policyFile := "test.rego"
 	err := os.WriteFile(policyFile, []byte(examplePolicy), 0644)
 	gt.NoError(t, err)
-	defer os.Remove(policyFile)
+	defer func() { _ = os.Remove(policyFile) }()
 
 	client, err := policy.New(policy.WithFile(policyFile))
 	gt.NoError(t, err)
@@ -80,7 +80,7 @@ func TestClient_New_WithDir(t *testing.T) {
 	policyDir := "policy_test"
 	err := os.Mkdir(policyDir, 0755)
 	gt.NoError(t, err)
-	defer os.RemoveAll(policyDir)
+	defer func() { _ = os.RemoveAll(policyDir) }()
 
 	policyFile := policyDir + "/test.rego"
 	err = os.WriteFile(policyFile, []byte(examplePolicy), 0644)

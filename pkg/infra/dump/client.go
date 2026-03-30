@@ -51,7 +51,7 @@ func (x *Client) Insert(ctx context.Context, datasetID types.BQDatasetID, tableI
 	if err != nil {
 		return goerr.Wrap(err, "failed to create file", goerr.V("file", fpath))
 	}
-	defer fd.Close()
+	defer func() { _ = fd.Close() }()
 
 	encoder := json.NewEncoder(fd)
 	for _, record := range data {
@@ -80,7 +80,7 @@ func dumpSchema(dir string, dataset types.BQDatasetID, table types.BQTableID, sc
 	if err != nil {
 		return goerr.Wrap(err, "failed to create file", goerr.V("file", fpath))
 	}
-	defer fd.Close()
+	defer func() { _ = fd.Close() }()
 
 	raw, err := schema.ToJSONFields()
 	if err != nil {

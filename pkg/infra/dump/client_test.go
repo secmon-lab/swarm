@@ -18,7 +18,7 @@ func TestClient_Insert(t *testing.T) {
 	// Create a temporary directory for testing
 	tmpDir, err := os.MkdirTemp("", "dump_test")
 	gt.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create a test client
 	client := dump.New(tmpDir)
@@ -38,7 +38,7 @@ func TestClient_Insert(t *testing.T) {
 	fpath := filepath.Join(tmpDir, fname)
 	fd, err := os.Open(fpath)
 	gt.NoError(t, err)
-	defer fd.Close()
+	defer func() { _ = fd.Close() }()
 
 	decoder := json.NewDecoder(fd)
 	var records []interface{}

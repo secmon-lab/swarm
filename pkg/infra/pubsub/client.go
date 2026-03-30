@@ -4,16 +4,16 @@ import (
 	"context"
 	"time"
 
-	"cloud.google.com/go/pubsub"
-	apiv1 "cloud.google.com/go/pubsub/apiv1"
-	"cloud.google.com/go/pubsub/apiv1/pubsubpb"
+	"cloud.google.com/go/pubsub/v2"
+	apiv1 "cloud.google.com/go/pubsub/v2/apiv1"
+	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	"github.com/m-mizutani/goerr/v2"
 	"github.com/secmon-lab/swarm/pkg/domain/types"
 )
 
 type TopicClient struct {
-	client *pubsub.Client
-	topic  *pubsub.Topic
+	client    *pubsub.Client
+	publisher *pubsub.Publisher
 }
 
 func NewTopic(ctx context.Context, projectID types.GoogleProjectID, topicID types.PubSubTopicID) (*TopicClient, error) {
@@ -22,29 +22,29 @@ func NewTopic(ctx context.Context, projectID types.GoogleProjectID, topicID type
 		return nil, err
 	}
 
-	topic := client.Topic(topicID.String())
+	publisher := client.Publisher(topicID.String())
 	return &TopicClient{
-		client: client,
-		topic:  topic,
+		client:    client,
+		publisher: publisher,
 	}, nil
 }
 
 func (x *TopicClient) Publish(ctx context.Context, data []byte) (types.PubSubMessageID, error) {
-	msgID, err := x.topic.Publish(ctx, &pubsub.Message{Data: data}).Get(ctx)
+	msgID, err := x.publisher.Publish(ctx, &pubsub.Message{Data: data}).Get(ctx)
 	return types.PubSubMessageID(msgID), err
 }
 
 func (x *TopicClient) Close() {
-	x.topic.Stop()
-	x.client.Close()
+	x.publisher.Stop()
+	_ = x.client.Close()
 }
 
 type SubscriptionClient struct {
-	client *apiv1.SubscriberClient
+	client *apiv1.SubscriptionAdminClient
 }
 
 func NewSubscriptionClient(ctx context.Context) (*SubscriptionClient, error) {
-	client, err := apiv1.NewSubscriberClient(ctx)
+	client, err := apiv1.NewSubscriptionAdminClient(ctx)
 	if err != nil {
 		return nil, goerr.Wrap(err, "failed to create subscriber client")
 	}

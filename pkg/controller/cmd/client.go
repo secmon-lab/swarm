@@ -47,7 +47,7 @@ func clientHealthCheck() *cli.Command {
 			if err != nil {
 				return goerr.Wrap(err, "failed to send request")
 			}
-			defer resp.Body.Close()
+			defer func() { _ = resp.Body.Close() }()
 
 			if resp.StatusCode != http.StatusOK {
 				return goerr.New("server is not healthy", goerr.V("status", resp.Status))
