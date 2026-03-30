@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"cloud.google.com/go/pubsub/apiv1/pubsubpb"
+	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	"github.com/m-mizutani/goerr/v2"
 	"github.com/secmon-lab/swarm/pkg/domain/interfaces"
 	"github.com/secmon-lab/swarm/pkg/domain/model"

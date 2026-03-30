@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigquery"
-	"cloud.google.com/go/pubsub/apiv1/pubsubpb"
+	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	"cloud.google.com/go/storage"
 	"github.com/secmon-lab/swarm/pkg/domain/model"
 	"github.com/secmon-lab/swarm/pkg/domain/types"

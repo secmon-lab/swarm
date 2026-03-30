@@ -51,13 +51,17 @@ func (x *Client) Insert(ctx context.Context, datasetID types.BQDatasetID, tableI
 	if err != nil {
 		return goerr.Wrap(err, "failed to create file", goerr.V("file", fpath))
 	}
-	defer fd.Close()
 
 	encoder := json.NewEncoder(fd)
 	for _, record := range data {
 		if err := encoder.Encode(record); err != nil {
+			_ = fd.Close()
 			return goerr.Wrap(err, "failed to encode record", goerr.V("record", record))
 		}
+	}
+
+	if err := fd.Close(); err != nil {
+		return goerr.Wrap(err, "failed to close file", goerr.V("file", fpath))
 	}
 
 	return nil
@@ -80,15 +84,20 @@ func dumpSchema(dir string, dataset types.BQDatasetID, table types.BQTableID, sc
 	if err != nil {
 		return goerr.Wrap(err, "failed to create file", goerr.V("file", fpath))
 	}
-	defer fd.Close()
 
 	raw, err := schema.ToJSONFields()
 	if err != nil {
+		_ = fd.Close()
 		return goerr.Wrap(err, "failed to convert schema to JSON fields")
 	}
 
 	if _, err := fd.Write(raw); err != nil {
+		_ = fd.Close()
 		return goerr.Wrap(err, "failed to write schema", goerr.V("file", fpath))
+	}
+
+	if err := fd.Close(); err != nil {
+		return goerr.Wrap(err, "failed to close file", goerr.V("file", fpath))
 	}
 
 	return nil

@@ -2,10 +2,10 @@ package auth
 
 default deny = true
 
-deny = false {
+deny = false if {
 	allow
 }
 
-allow {
+allow if {
 	input.header.Authorization[_] == "Bearer good-token"
 }

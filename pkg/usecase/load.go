@@ -257,14 +257,14 @@ func downloadCloudStorageObject(ctx context.Context, csClient interfaces.CloudSt
 	if err != nil {
 		return nil, goerr.Wrap(err, "failed to open object", goerr.V("req", req))
 	}
-	defer reader.Close()
+	defer func() { _ = reader.Close() }()
 
 	if req.Source.Compress == types.GZIPComp {
 		r, err := gzip.NewReader(reader)
 		if err != nil {
 			return nil, goerr.Wrap(err, "failed to create gzip reader", goerr.V("req", req))
 		}
-		defer r.Close()
+		defer func() { _ = r.Close() }()
 		reader = r
 	}
 

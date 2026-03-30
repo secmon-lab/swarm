@@ -17,7 +17,7 @@ func (x *UseCase) Enqueue(ctx context.Context, req *model.EnqueueRequest) (*mode
 	var (
 		totalCount int64
 		totalSize  int64
-		sizeLimit  int64 = int64(x.enqueueSizeLimit * 1024 * 1024) // MiB
+		sizeLimit = int64(x.enqueueSizeLimit * 1024 * 1024) // MiB
 	)
 
 	var objects []*model.Object
