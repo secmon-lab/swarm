@@ -81,5 +81,5 @@ func TestCloneFromJson(t *testing.T) {
 	gt.NoError(t, json.Unmarshal([]byte(raw), &src))
 	dst := usecase.CloneWithoutNil(src)
 	m := gt.Cast[map[string]any](t, dst)
-	gt.M(t, m).HaveKey("str").NotHaveKey("field").NotHaveKey("empty")
+	gt.M(t, m).HasKey("str").NotHasKey("field").NotHasKey("empty")
 }
