@@ -68,7 +68,7 @@ func TestPubSubCloudStorage(t *testing.T) {
 			var calledLoad, calledE2S int
 			mock := &usecase.Mock{
 				MockLoadData: func(ctx context.Context, req []*model.LoadRequest) error {
-					gt.A(t, req).Must().Length(1)
+					gt.A(t, req).Required().Length(1)
 					gt.Equal(t, req[0].Source.Parser, types.JSONParser)
 					gt.Equal(t, req[0].Source.Schema, "cloudtrail")
 					gt.Equal(t, req[0].Source.Compress, types.NoCompress)
@@ -111,7 +111,7 @@ func TestPubSubSwarmMessage(t *testing.T) {
 	var calledLoad, calledE2S int
 	mock := &usecase.Mock{
 		MockLoadData: func(ctx context.Context, req []*model.LoadRequest) error {
-			gt.A(t, req).Must().Length(6)
+			gt.A(t, req).Required().Length(6)
 			gt.Equal(t, req[0].Source.Parser, types.JSONParser)
 			gt.Equal(t, req[0].Source.Schema, "cloudtrail")
 			gt.Equal(t, req[0].Source.Compress, types.NoCompress)
