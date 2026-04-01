@@ -28,6 +28,9 @@ type UseCase struct {
 
 	// stateWaitTimeout is a duration to wait for state transition. This is used in WaitState method.
 	stateWaitTimeout time.Duration
+
+	// idleTimeout is the duration to wait for new messages before considering the subscription empty and stopping. Used in job mode.
+	idleTimeout time.Duration
 }
 
 const (
@@ -40,6 +43,7 @@ const (
 	defaultStateTTL                = 7 * 24 * time.Hour
 	defaultStateCheckInterval      = 10 * time.Second
 	defaultStateWaitTimeout        = 2 * time.Minute
+	defaultIdleTimeout             = 10 * time.Second
 )
 
 func New(clients *infra.Clients, options ...Option) *UseCase {
@@ -54,6 +58,7 @@ func New(clients *infra.Clients, options ...Option) *UseCase {
 		stateTTL:                defaultStateTTL,
 		stateCheckInterval:      defaultStateCheckInterval,
 		stateWaitTimeout:        defaultStateWaitTimeout,
+		idleTimeout:             defaultIdleTimeout,
 	}
 
 	for _, option := range options {
@@ -131,5 +136,11 @@ func WithStateTTL(d time.Duration) Option {
 func WithStateCheckInterval(d time.Duration) Option {
 	return func(uc *UseCase) {
 		uc.stateCheckInterval = d
+	}
+}
+
+func WithIdleTimeout(d time.Duration) Option {
+	return func(uc *UseCase) {
+		uc.idleTimeout = d
 	}
 }

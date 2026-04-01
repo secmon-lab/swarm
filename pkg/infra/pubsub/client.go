@@ -2,12 +2,10 @@ package pubsub
 
 import (
 	"context"
-	"time"
 
 	"cloud.google.com/go/pubsub/v2"
-	apiv1 "cloud.google.com/go/pubsub/v2/apiv1"
-	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	"github.com/m-mizutani/goerr/v2"
+	"github.com/secmon-lab/swarm/pkg/domain/interfaces"
 	"github.com/secmon-lab/swarm/pkg/domain/types"
 )
 
@@ -39,14 +37,24 @@ func (x *TopicClient) Close() error {
 	return x.client.Close()
 }
 
-type SubscriptionClient struct {
-	client *apiv1.SubscriptionAdminClient
+// messageWrapper wraps *pubsub.Message to implement interfaces.PubSubMessage.
+type messageWrapper struct {
+	msg *pubsub.Message
 }
 
-func NewSubscriptionClient(ctx context.Context) (*SubscriptionClient, error) {
-	client, err := apiv1.NewSubscriptionAdminClient(ctx)
+func (m *messageWrapper) Data() []byte { return m.msg.Data }
+func (m *messageWrapper) ID() string   { return m.msg.ID }
+func (m *messageWrapper) Ack()         { m.msg.Ack() }
+func (m *messageWrapper) Nack()        { m.msg.Nack() }
+
+type SubscriptionClient struct {
+	client *pubsub.Client
+}
+
+func NewSubscriptionClient(ctx context.Context, projectID types.GoogleProjectID) (*SubscriptionClient, error) {
+	client, err := pubsub.NewClient(ctx, projectID.String())
 	if err != nil {
-		return nil, goerr.Wrap(err, "failed to create subscriber client")
+		return nil, goerr.Wrap(err, "failed to create pubsub client")
 	}
 
 	return &SubscriptionClient{
@@ -54,46 +62,12 @@ func NewSubscriptionClient(ctx context.Context) (*SubscriptionClient, error) {
 	}, nil
 }
 
-func (x *SubscriptionClient) Pull(ctx context.Context, subName string) ([]*pubsubpb.ReceivedMessage, error) {
-	req := pubsubpb.PullRequest{
-		Subscription:      subName,
-		MaxMessages:       1,
-		ReturnImmediately: true,
-	}
-
-	res, err := x.client.Pull(ctx, &req)
-	if err != nil {
-		return nil, goerr.Wrap(err, "failed to pull message", goerr.V("subName", subName))
-	}
-
-	return res.ReceivedMessages, nil
-}
-
-func (x *SubscriptionClient) Acknowledge(ctx context.Context, subName string, ackID string) error {
-	req := pubsubpb.AcknowledgeRequest{
-		Subscription: subName,
-		AckIds:       []string{ackID},
-	}
-
-	if err := x.client.Acknowledge(ctx, &req); err != nil {
-		return goerr.Wrap(err, "failed to acknowledge message", goerr.V("subName", subName), goerr.V("ackID", ackID))
-	}
-	return nil
-}
-
-func (x *SubscriptionClient) ModifyAckDeadline(ctx context.Context, subName string, ackID string, deadline time.Duration) error {
-	req := pubsubpb.ModifyAckDeadlineRequest{
-		Subscription:       subName,
-		AckIds:             []string{ackID},
-		AckDeadlineSeconds: int32(deadline.Seconds()),
-	}
-
-	if err := x.client.ModifyAckDeadline(ctx, &req); err != nil {
-		return goerr.Wrap(err, "failed to modify ack deadline",
-			goerr.V("subName", subName),
-			goerr.V("ackID", ackID),
-			goerr.V("deadline", deadline),
-		)
+func (x *SubscriptionClient) Receive(ctx context.Context, subName string, f func(context.Context, interfaces.PubSubMessage)) error {
+	sub := x.client.Subscriber(subName)
+	if err := sub.Receive(ctx, func(ctx context.Context, msg *pubsub.Message) {
+		f(ctx, &messageWrapper{msg: msg})
+	}); err != nil {
+		return goerr.Wrap(err, "failed to receive messages", goerr.V("subName", subName))
 	}
 	return nil
 }
