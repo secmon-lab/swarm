@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"log/slog"
+	"time"
 
 	"github.com/m-mizutani/goerr/v2"
 	"github.com/secmon-lab/swarm/pkg/controller/cmd/config"
@@ -27,6 +28,7 @@ func jobCommand() *cli.Command {
 
 		memoryLimit   string
 		subscriptions cli.StringSlice
+		idleTimeout   time.Duration
 	)
 
 	return &cli.Command{
@@ -66,6 +68,13 @@ func jobCommand() *cli.Command {
 				EnvVars:     []string{"SWARM_SUBSCRIPTIONS"},
 				Destination: &subscriptions,
 			},
+			&cli.DurationFlag{
+				Name:        "idle-timeout",
+				Usage:       "Duration to wait for new messages before stopping (e.g. 10s, 30s)",
+				EnvVars:     []string{"SWARM_IDLE_TIMEOUT"},
+				Destination: &idleTimeout,
+				Value:       10 * time.Second,
+			},
 		}, bq.Flags(), policy.Flags(), metadata.Flags(), sentry.Flags()),
 
 		Action: func(c *cli.Context) error {
@@ -78,6 +87,7 @@ func jobCommand() *cli.Command {
 					"ingest-table-concurrency", ingestTableConcurrency,
 					"ingest-record-concurrency", ingestRecordConcurrency,
 					"memory-limit", memoryLimit,
+					"idle-timeout", idleTimeout,
 
 					"bigquery", &bq,
 					"policy", &policy,
@@ -110,7 +120,7 @@ func jobCommand() *cli.Command {
 			}
 			infraOptions = append(infraOptions, infra.WithCloudStorage(csClient))
 
-			subClient, err := pubsub.NewSubscriptionClient(ctx)
+			subClient, err := pubsub.NewSubscriptionClient(ctx, bq.ProjectID())
 			if err != nil {
 				return goerr.Wrap(err, "failed to configure Pub/Sub subscription client")
 			}
@@ -119,6 +129,7 @@ func jobCommand() *cli.Command {
 			ucOptions := []usecase.Option{
 				usecase.WithIngestTableConcurrency(ingestTableConcurrency),
 				usecase.WithIngestRecordConcurrency(ingestRecordConcurrency),
+				usecase.WithIdleTimeout(idleTimeout),
 			}
 
 			if meta, err := metadata.Configure(); err != nil {
@@ -133,7 +144,11 @@ func jobCommand() *cli.Command {
 
 			uc := usecase.New(infra.New(infraOptions...), ucOptions...)
 
-			return uc.RunWithSubscriptions(ctx, subscriptions.Value())
+			if err := uc.RunWithSubscriptions(ctx, subscriptions.Value()); err != nil {
+				utils.HandleError(ctx, "failed to run job", err)
+				return err
+			}
+			return nil
 		},
 	}
 }

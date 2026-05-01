@@ -3,93 +3,72 @@ package usecase
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"time"
 
-	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	"github.com/m-mizutani/goerr/v2"
 	"github.com/secmon-lab/swarm/pkg/domain/interfaces"
 	"github.com/secmon-lab/swarm/pkg/domain/model"
 	"github.com/secmon-lab/swarm/pkg/utils"
+	"golang.org/x/sync/errgroup"
 )
 
 func (x *UseCase) RunWithSubscriptions(ctx context.Context, subscriptions []string) error {
 	utils.CtxLogger(ctx).Info("starting job", "subscriptions", subscriptions)
 
+	eg, ctx := errgroup.WithContext(ctx)
 	for _, subName := range subscriptions {
-		if err := x.runWithSubscription(ctx, subName); err != nil {
-			return err
-		}
+		eg.Go(func() error {
+			return x.runWithSubscription(ctx, subName)
+		})
 	}
 
-	return nil
+	return eg.Wait()
 }
 
 func (x *UseCase) runWithSubscription(ctx context.Context, subName string) error {
 	utils.CtxLogger(ctx).Info("starting job", "subscription", subName)
 
-	pullClient := x.clients.PubSubSubscription()
-	for {
-		resp, err := pullClient.Pull(ctx, subName)
-		if err != nil {
-			return err
+	cctx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
+
+	idleTimer := time.AfterFunc(x.idleTimeout, func() {
+		utils.CtxLogger(ctx).Info("idle timeout reached, stopping", "subscription", subName)
+		cancel(nil)
+	})
+	defer idleTimer.Stop()
+
+	err := x.clients.PubSubSubscription().Receive(cctx, subName, func(ctx context.Context, msg interfaces.PubSubMessage) {
+		idleTimer.Reset(x.idleTimeout)
+
+		if err := x.processPubSubMessage(ctx, msg); err != nil {
+			utils.CtxLogger(ctx).Error("failed to process message", "error", err)
+			msg.Nack()
+			cancel(err)
+			return
 		}
-		if len(resp) == 0 {
-			utils.CtxLogger(ctx).Info("no message in subscription", "subscription", subName)
-			return nil
-		}
+		msg.Ack()
+	})
 
-		for _, msg := range resp {
-			ctx, cancel := context.WithCancel(ctx)
-			defer cancel()
-
-			go func() {
-				if err := loopExtendPubSubMessageDeadline(ctx, pullClient, subName, msg.AckId); err != nil {
-					utils.CtxLogger(ctx).Error("failed to extend deadline", "error", err)
-				}
-			}()
-
-			if err := x.processPubSubMessage(ctx, msg); err != nil {
-				return err
-			}
-
-			if err := pullClient.Acknowledge(ctx, subName, msg.AckId); err != nil {
-				return err
-			}
-		}
+	if err != nil {
+		return err
 	}
+
+	// cancel(nil) sets cause to context.Canceled, so filter that out.
+	// Only return cause if it's a real processing error from the callback.
+	if cause := context.Cause(cctx); cause != nil && !errors.Is(cause, context.Canceled) {
+		return cause
+	}
+
+	return nil
 }
 
-func loopExtendPubSubMessageDeadline(ctx context.Context, client interfaces.PubSubSubscription, subName string, ackID string) error {
-	tickInterval := 60 * time.Second
-	extendDuration := 90 * time.Second
-
-	tick := time.NewTicker(tickInterval)
-	defer tick.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			if ctx.Err() == context.Canceled {
-				return nil
-			}
-			return ctx.Err()
-
-		case <-tick.C:
-			utils.CtxLogger(ctx).Info("extend deadline", "subscription", subName, "ackID", ackID)
-			if err := client.ModifyAckDeadline(ctx, subName, ackID, extendDuration); err != nil {
-				return err
-			}
-		}
-	}
-}
-
-func (x *UseCase) processPubSubMessage(ctx context.Context, msg *pubsubpb.ReceivedMessage) error {
+func (x *UseCase) processPubSubMessage(ctx context.Context, msg interfaces.PubSubMessage) error {
 	logger := utils.CtxLogger(ctx)
-	logger.Info("processing message", "message", msg)
+	logger.Info("processing message", "messageID", msg.ID())
 
-	// Decode message
 	var event model.CloudStorageEvent
-	if err := json.Unmarshal(msg.Message.Data, &event); err != nil {
+	if err := json.Unmarshal(msg.Data(), &event); err != nil {
 		return err
 	}
 	logger.Info("decoded message", "event", event)

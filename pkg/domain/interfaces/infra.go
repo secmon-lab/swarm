@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigquery"
-	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	"cloud.google.com/go/storage"
 	"github.com/secmon-lab/swarm/pkg/domain/model"
 	"github.com/secmon-lab/swarm/pkg/domain/types"
@@ -35,10 +34,15 @@ type PubSubTopic interface {
 	Publish(ctx context.Context, data []byte) (types.PubSubMessageID, error)
 }
 
+type PubSubMessage interface {
+	Data() []byte
+	ID() string
+	Ack()
+	Nack()
+}
+
 type PubSubSubscription interface {
-	Pull(ctx context.Context, subName string) ([]*pubsubpb.ReceivedMessage, error)
-	ModifyAckDeadline(ctx context.Context, subName string, ackID string, deadline time.Duration) error
-	Acknowledge(ctx context.Context, subName string, ackID string) error
+	Receive(ctx context.Context, subName string, f func(context.Context, PubSubMessage)) error
 	Close() error
 }
 
