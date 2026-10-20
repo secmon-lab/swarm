@@ -86,7 +86,8 @@ func (x *Manager) Renew(ctx context.Context) error {
 	x.mutex.Lock()
 	defer x.mutex.Unlock()
 
-	newWriter, err := x.fac.newWriter(ctx)
+	// The managed stream keeps the context passed at creation for its whole lifetime. The new writer is shared by later appends, so it must not be canceled together with the context of the append that triggered the renewal.
+	newWriter, err := x.fac.newWriter(context.WithoutCancel(ctx))
 	if err != nil {
 		return err
 	}

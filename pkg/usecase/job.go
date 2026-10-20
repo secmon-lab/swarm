@@ -9,11 +9,16 @@ import (
 	"github.com/m-mizutani/goerr/v2"
 	"github.com/secmon-lab/swarm/pkg/domain/interfaces"
 	"github.com/secmon-lab/swarm/pkg/domain/model"
+	"github.com/secmon-lab/swarm/pkg/domain/types"
 	"github.com/secmon-lab/swarm/pkg/utils"
 )
 
 func (x *UseCase) RunWithSubscriptions(ctx context.Context, subscriptions []string) error {
-	utils.CtxLogger(ctx).Info("starting job", "subscriptions", subscriptions)
+	if x.messageConcurrency < 1 {
+		return goerr.Wrap(types.ErrInvalidOption, "message concurrency must be 1 or more", goerr.V("messageConcurrency", x.messageConcurrency))
+	}
+
+	utils.CtxLogger(ctx).Info("starting job", "subscriptions", subscriptions, "messageConcurrency", x.messageConcurrency)
 
 	for _, subName := range subscriptions {
 		if err := x.runWithSubscription(ctx, subName); err != nil {
@@ -24,45 +29,110 @@ func (x *UseCase) RunWithSubscriptions(ctx context.Context, subscriptions []stri
 	return nil
 }
 
+// runWithSubscription processes messages of the subscription until the subscription has no message. It processes at most x.messageConcurrency messages at the same time. When processing a message fails, it stops pulling new messages, waits for the messages in process, and returns the first error.
 func (x *UseCase) runWithSubscription(ctx context.Context, subName string) error {
 	utils.CtxLogger(ctx).Info("starting job", "subscription", subName)
 
 	pullClient := x.clients.PubSubSubscription()
-	for {
-		resp, err := pullClient.Pull(ctx, subName)
-		if err != nil {
-			return err
+	results := make(chan error, x.messageConcurrency)
+	inProcess := 0
+	var firstErr error
+
+	receiveResult := func(err error) {
+		inProcess--
+		if err != nil && firstErr == nil {
+			firstErr = err
 		}
-		if len(resp) == 0 {
-			utils.CtxLogger(ctx).Info("no message in subscription", "subscription", subName)
-			return nil
-		}
-
-		for _, msg := range resp {
-			ctx, cancel := context.WithCancel(ctx)
-			defer cancel()
-
-			go func() {
-				if err := loopExtendPubSubMessageDeadline(ctx, pullClient, subName, msg.AckId); err != nil {
-					utils.CtxLogger(ctx).Error("failed to extend deadline", "error", err)
-				}
-			}()
-
-			if err := x.processPubSubMessage(ctx, msg); err != nil {
-				return err
-			}
-
-			if err := pullClient.Acknowledge(ctx, subName, msg.AckId); err != nil {
-				return err
+	}
+	// receiveAvailableResults takes results that are already available without waiting, so that a failure stops pulling as soon as possible.
+	receiveAvailableResults := func() {
+		for inProcess > 0 {
+			select {
+			case err := <-results:
+				receiveResult(err)
+			default:
+				return
 			}
 		}
 	}
+
+	for {
+		receiveAvailableResults()
+		if firstErr != nil {
+			break
+		}
+
+		if inProcess == x.messageConcurrency {
+			receiveResult(<-results)
+			continue
+		}
+
+		msgs, err := pullClient.Pull(ctx, subName, x.messageConcurrency-inProcess)
+
+		// Messages already received are processed and acknowledged on success, even if another message failed during Pull. Leaving them unprocessed would delay their redelivery until their ack deadline expires.
+		for _, msg := range msgs {
+			inProcess++
+			go func() {
+				results <- x.handlePubSubMessage(ctx, pullClient, subName, msg)
+			}()
+		}
+
+		if err != nil {
+			// A processing failure that finished before Pull failed is the first error.
+			receiveAvailableResults()
+			if firstErr == nil {
+				firstErr = err
+			}
+			break
+		}
+
+		if len(msgs) == 0 {
+			if inProcess == 0 {
+				utils.CtxLogger(ctx).Info("no message in subscription", "subscription", subName)
+				return nil
+			}
+			// Wait for a message in process before pulling again, so that an empty subscription is not pulled repeatedly.
+			receiveResult(<-results)
+		}
+	}
+
+	for inProcess > 0 {
+		receiveResult(<-results)
+	}
+
+	return firstErr
 }
 
-func loopExtendPubSubMessageDeadline(ctx context.Context, client interfaces.PubSubSubscription, subName string, ackID string) error {
-	tickInterval := 60 * time.Second
-	extendDuration := 90 * time.Second
+// handlePubSubMessage processes the message and acknowledges it if processing succeeds. The ack deadline of the message is extended while it is processed.
+func (x *UseCase) handlePubSubMessage(ctx context.Context, client interfaces.PubSubSubscription, subName string, msg *pubsubpb.ReceivedMessage) error {
+	msgCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
+	extenderDone := make(chan struct{})
+	go func() {
+		defer close(extenderDone)
+		if err := loopExtendPubSubMessageDeadline(msgCtx, client, subName, msg.AckId, x.ackDeadlineExtendInterval, x.ackDeadlineExtension); err != nil {
+			utils.CtxLogger(msgCtx).Error("failed to extend deadline", "error", err)
+		}
+	}()
+
+	err := x.processPubSubMessage(msgCtx, msg)
+
+	// Stop the extender and wait for it before Acknowledge, not after it, so that ModifyAckDeadline is never called for an acknowledged message. The last extension leaves enough time to acknowledge.
+	cancel()
+	<-extenderDone
+
+	if err != nil {
+		return err
+	}
+
+	if err := client.Acknowledge(ctx, subName, msg.AckId); err != nil {
+		return err
+	}
+	return nil
+}
+
+func loopExtendPubSubMessageDeadline(ctx context.Context, client interfaces.PubSubSubscription, subName string, ackID string, tickInterval, extendDuration time.Duration) error {
 	tick := time.NewTicker(tickInterval)
 	defer tick.Stop()
 

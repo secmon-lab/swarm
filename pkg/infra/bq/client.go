@@ -3,6 +3,8 @@ package bq
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"net/http"
 	"time"
 
 	"cloud.google.com/go/bigquery"
@@ -121,7 +123,6 @@ func convertDataToBytes(md protoreflect.MessageDescriptor, data []any) ([][]byte
 }
 
 var errAppendCountMismatch = goerr.New("append count mismatch")
-var errSchemaMismatch = goerr.New("schema mismatch")
 
 func (x *Client) Insert(ctx context.Context, datasetID types.BQDatasetID, tableID types.BQTableID, schema bigquery.Schema, data []any) error {
 	convertedSchema, err := adapt.BQSchemaToStorageTableSchema(schema)
@@ -154,20 +155,26 @@ func (x *Client) Insert(ctx context.Context, datasetID types.BQDatasetID, tableI
 		tableID.String(),
 	)
 
+	var lastErr error
 	if err := backoff(ctx, func(n int) (bool, error) {
-		if err := insert(ctx, x.mwClient, tableParent, data, descriptorProto, messageDescriptor); err != nil {
-			if err == errAppendCountMismatch {
+		lastErr = insert(ctx, x.mwClient, tableParent, data, descriptorProto, messageDescriptor)
+		if lastErr != nil {
+			if lastErr == errAppendCountMismatch {
 				utils.CtxLogger(ctx).Warn("append count mismatch, retry", "n", n)
 				return false, nil
 			}
-			if err == errSchemaMismatch {
+			if errors.Is(lastErr, types.ErrSchemaNotMatched) {
 				utils.CtxLogger(ctx).Warn("schema mismatch, retry", "n", n)
 				return false, nil
 			}
-			return true, err
+			return true, lastErr
 		}
 		return true, nil
 	}); err != nil {
+		// Report the schema mismatch to the caller so that it can discard the schema it used.
+		if errors.Is(lastErr, types.ErrSchemaNotMatched) {
+			return goerr.Wrap(lastErr, "failed to insert data until timeout", goerr.V("error", err.Error()))
+		}
 		return goerr.Wrap(err, "failed to insert data")
 	}
 	return nil
@@ -231,7 +238,7 @@ func insert(ctx context.Context, mwClient *mw.Client, tableParent string, data [
 	for _, resp := range respSet {
 		if _, err := resp.GetResult(ctx); err != nil {
 			if isSchemaMismatchError(err) {
-				return errSchemaMismatch
+				return goerr.Wrap(types.ErrSchemaNotMatched, "table schema does not match", goerr.V("stream_name", ms.StreamName()))
 			}
 			return goerr.Wrap(err, "failed to get append result")
 		}
@@ -281,6 +288,11 @@ func (x *Client) GetMetadata(ctx context.Context, dataset types.BQDatasetID, tab
 // UpdateSchema implements interfaces.BigQuery.
 func (x *Client) UpdateTable(ctx context.Context, dataset types.BQDatasetID, table types.BQTableID, md bigquery.TableMetadataToUpdate, eTag string) error {
 	if _, err := x.bqClient.Dataset(dataset.String()).Table(table.String()).Update(ctx, md, eTag); err != nil {
+		var gErr *googleapi.Error
+		if errors.As(err, &gErr) && gErr.Code == http.StatusPreconditionFailed {
+			return goerr.Wrap(types.ErrTableETagMismatch, "table was updated by another writer",
+				goerr.V("dataset", dataset), goerr.V("table", table), goerr.V("eTag", eTag), goerr.V("error", err.Error()))
+		}
 		return goerr.Wrap(err, "failed to update table schema", goerr.V("dataset", dataset), goerr.V("table", table))
 	}
 

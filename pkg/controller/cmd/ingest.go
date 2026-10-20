@@ -82,6 +82,7 @@ func ingestCommand() *cli.Command {
 				),
 				usecase.WithMetadata(md),
 			)
+			defer utils.SafeClose(uc)
 
 			for _, url := range c.Args().Slice() {
 				if err := uc.LoadDataByObject(ctx, types.CSUrl(url)); err != nil {

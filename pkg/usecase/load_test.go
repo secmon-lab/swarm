@@ -5,9 +5,11 @@ import (
 	"context"
 	_ "embed"
 	"io"
+	"sync"
 	"testing"
 	"time"
 
+	"cloud.google.com/go/bigquery"
 	"github.com/google/uuid"
 	"github.com/m-mizutani/gt"
 	"github.com/secmon-lab/swarm/pkg/domain/model"
@@ -129,6 +131,109 @@ func TestLoadData(t *testing.T) {
 	}
 }
 
+func newCloudTrailLoadRequest() *model.LoadRequest {
+	return &model.LoadRequest{
+		Source: model.Source{
+			Parser:   types.JSONParser,
+			Schema:   "cloudtrail",
+			Compress: types.NoCompress,
+		},
+		Object: model.Object{
+			CS: &model.CloudStorageObject{
+				Bucket: "test-bucket",
+				Name:   "cloudtrail_example.log",
+			},
+		},
+	}
+}
+
+func newCloudTrailCSMock() *cs.Mock {
+	return &cs.Mock{
+		MockOpen: func(ctx context.Context, obj model.CloudStorageObject) (io.ReadCloser, error) {
+			return io.NopCloser(bytes.NewReader(cloudTrailExampleRaw)), nil
+		},
+	}
+}
+
+func TestLoadReusesTableMetadata(t *testing.T) {
+	ctx := context.Background()
+	var mutex sync.Mutex
+	getMetadataCount := map[types.BQTableID]int{}
+	bqClient := &bq.Mock{
+		MockGetMetadata: func(ctx context.Context, datasetID types.BQDatasetID, tableID types.BQTableID) (*bigquery.TableMetadata, error) {
+			mutex.Lock()
+			defer mutex.Unlock()
+			getMetadataCount[tableID]++
+			return nil, nil
+		},
+	}
+	pClient := gt.R1(policy.New(policy.WithDir("testdata/policy"))).NoError(t)
+	uc := usecase.New(infra.New(
+		infra.WithBigQuery(bqClient),
+		infra.WithCloudStorage(newCloudTrailCSMock()),
+		infra.WithPolicy(pClient),
+	))
+
+	for i := 0; i < 3; i++ {
+		gt.NoError(t, uc.Load(ctx, []*model.LoadRequest{newCloudTrailLoadRequest()}))
+	}
+
+	gt.Equal(t, getMetadataCount, map[types.BQTableID]int{"cloudtrail": 1})
+}
+
+func TestLoadReusesLoadLogStream(t *testing.T) {
+	ctx := context.Background()
+	bqClient := bq.NewGeneralMock()
+	pClient := gt.R1(policy.New(policy.WithDir("testdata/policy"))).NoError(t)
+	meta := model.NewMetadataConfig("test-dataset", "test-load-logs")
+
+	uc := usecase.New(
+		infra.New(
+			infra.WithBigQuery(bqClient),
+			infra.WithCloudStorage(newCloudTrailCSMock()),
+			infra.WithPolicy(pClient),
+		),
+		usecase.WithMetadata(meta),
+	)
+
+	const loadCount = 4
+	var wg sync.WaitGroup
+	for i := 0; i < loadCount; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			gt.NoError(t, uc.Load(ctx, []*model.LoadRequest{newCloudTrailLoadRequest()}))
+		}()
+	}
+	wg.Wait()
+
+	gt.A(t, bqClient.OpenedStream).Length(1).At(0, func(t testing.TB, v struct {
+		Dataset types.BQDatasetID
+		Table   types.BQTableID
+		Schema  bigquery.Schema
+	}) {
+		gt.Equal(t, v.Table, "test-load-logs")
+	})
+	createdLoadLogTable := 0
+	for _, created := range bqClient.CreatedTable {
+		if created.Table == "test-load-logs" {
+			createdLoadLogTable++
+		}
+	}
+	gt.Equal(t, createdLoadLogTable, 1)
+
+	stream := bqClient.Streams[0]
+	// One row is written for each Load call.
+	gt.A(t, stream.Inserted).Length(loadCount)
+	for _, rows := range stream.Inserted {
+		gt.A(t, rows).Length(1)
+	}
+	gt.False(t, stream.Closed)
+
+	gt.NoError(t, uc.Close())
+	gt.True(t, stream.Closed)
+}
+
 func TestIngestRecordBigNum(t *testing.T) {
 	bqMock := bq.NewGeneralMock()
 	ctx := context.Background()
@@ -150,7 +255,7 @@ func TestIngestRecordBigNum(t *testing.T) {
 		})
 	}
 
-	resp := gt.R1(usecase.IngestRecords(ctx, bqMock, dst, records, 32)).NoError(t)
+	resp := gt.R1(usecase.IngestRecords(ctx, bqMock, usecase.NewTableSchemaCache(), dst, records, 32)).NoError(t)
 	gt.True(t, resp.Success)
 
 	/*

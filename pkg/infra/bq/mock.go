@@ -34,6 +34,7 @@ var _ interfaces.BigQuery = &Mock{}
 type MockStream struct {
 	mutex    sync.Mutex
 	Inserted [][]any
+	Closed   bool
 }
 
 func (x *MockStream) Insert(ctx context.Context, data []any) error {
@@ -45,6 +46,10 @@ func (x *MockStream) Insert(ctx context.Context, data []any) error {
 }
 
 func (x *MockStream) Close() error {
+	x.mutex.Lock()
+	defer x.mutex.Unlock()
+
+	x.Closed = true
 	return nil
 }
 

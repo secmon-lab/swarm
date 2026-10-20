@@ -36,7 +36,8 @@ type PubSubTopic interface {
 }
 
 type PubSubSubscription interface {
-	Pull(ctx context.Context, subName string) ([]*pubsubpb.ReceivedMessage, error)
+	// Pull returns at most maxMessages messages. It returns immediately even if no message is available.
+	Pull(ctx context.Context, subName string, maxMessages int) ([]*pubsubpb.ReceivedMessage, error)
 	ModifyAckDeadline(ctx context.Context, subName string, ackID string, deadline time.Duration) error
 	Acknowledge(ctx context.Context, subName string, ackID string) error
 	Close() error
