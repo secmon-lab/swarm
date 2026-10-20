@@ -4,7 +4,7 @@ First, let's try running it from the local environment. For actual deployment, p
 
 ## Prerequisites
 
-- Go 1.22 or later
+- Go 1.26 or later
 - Google Cloud project (e.g., `my-project`)
 - Objects of log files stored in Cloud Storage (e.g., `gs://swarm-test-bucket/test.log`)
   - You can use [sample log files](../examples/readme/data/test.log)
