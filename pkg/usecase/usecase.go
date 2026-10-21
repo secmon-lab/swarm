@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/m-mizutani/goerr/v2"
 	"github.com/secmon-lab/swarm/pkg/domain/interfaces"
 	"github.com/secmon-lab/swarm/pkg/domain/model"
@@ -32,7 +33,7 @@ type UseCase struct {
 	// stateWaitTimeout is a duration to wait for state transition. This is used in WaitState method.
 	stateWaitTimeout time.Duration
 
-	// messageConcurrency is the maximum number of Pub/Sub messages processed at the same time in RunWithSubscriptions.
+	// messageConcurrency is the maximum number of Pub/Sub messages processed at the same time in RunWithSubscriptions. Messages writing to the same table share the stream in tableStreams, so it does not change the number of CreateWriteStream calls, which are made only for rows larger than maxDefaultStreamAppendBytes.
 	messageConcurrency int
 
 	// ackDeadlineExtendInterval is the interval of extending the ack deadline of a Pub/Sub message in process.
@@ -41,6 +42,9 @@ type UseCase struct {
 	ackDeadlineExtension time.Duration
 
 	tableSchemas *tableSchemaCache
+
+	// tableStreams keeps the stream of each table to write data. Streams are opened by Load and closed by Close.
+	tableStreams *tableStreamCache
 
 	// loadLogStream is the stream to write load_logs. It is opened by the first Load call and closed by Close.
 	loadLogStream      interfaces.BigQueryStream
@@ -78,6 +82,7 @@ func New(clients *infra.Clients, options ...Option) *UseCase {
 		ackDeadlineExtendInterval: defaultAckDeadlineExtendInterval,
 		ackDeadlineExtension:      defaultAckDeadlineExtension,
 		tableSchemas:              newTableSchemaCache(),
+		tableStreams:              newTableStreamCache(),
 	}
 
 	for _, option := range options {
@@ -87,8 +92,19 @@ func New(clients *infra.Clients, options ...Option) *UseCase {
 	return uc
 }
 
-// Close releases resources held by UseCase. Currently it closes the stream to write load_logs.
+// Close releases resources held by UseCase. It closes the streams to write data of each table and the stream to write load_logs. It must be called after all Load calls have returned.
 func (x *UseCase) Close() error {
+	var mErr *multierror.Error
+	if err := x.tableStreams.close(); err != nil {
+		mErr = multierror.Append(mErr, err)
+	}
+	if err := x.closeLoadLogStream(); err != nil {
+		mErr = multierror.Append(mErr, err)
+	}
+	return mErr.ErrorOrNil()
+}
+
+func (x *UseCase) closeLoadLogStream() error {
 	x.loadLogStreamMutex.Lock()
 	defer x.loadLogStreamMutex.Unlock()
 

@@ -5,6 +5,7 @@ import (
 	"context"
 	_ "embed"
 	"io"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -207,13 +208,13 @@ func TestLoadReusesLoadLogStream(t *testing.T) {
 	}
 	wg.Wait()
 
-	gt.A(t, bqClient.OpenedStream).Length(1).At(0, func(t testing.TB, v struct {
-		Dataset types.BQDatasetID
-		Table   types.BQTableID
-		Schema  bigquery.Schema
-	}) {
-		gt.Equal(t, v.Table, "test-load-logs")
-	})
+	var loadLogStreams []*bq.MockStream
+	for i, opened := range bqClient.OpenedStream {
+		if opened.Table == "test-load-logs" {
+			loadLogStreams = append(loadLogStreams, bqClient.Streams[i])
+		}
+	}
+	gt.A(t, loadLogStreams).Length(1)
 	createdLoadLogTable := 0
 	for _, created := range bqClient.CreatedTable {
 		if created.Table == "test-load-logs" {
@@ -222,7 +223,7 @@ func TestLoadReusesLoadLogStream(t *testing.T) {
 	}
 	gt.Equal(t, createdLoadLogTable, 1)
 
-	stream := bqClient.Streams[0]
+	stream := loadLogStreams[0]
 	// One row is written for each Load call.
 	gt.A(t, stream.Inserted).Length(loadCount)
 	for _, rows := range stream.Inserted {
@@ -232,6 +233,178 @@ func TestLoadReusesLoadLogStream(t *testing.T) {
 
 	gt.NoError(t, uc.Close())
 	gt.True(t, stream.Closed)
+}
+
+func TestLoadReusesTableStream(t *testing.T) {
+	ctx := context.Background()
+	table := &fakeTable{}
+	pClient := gt.R1(policy.New(policy.WithDir("testdata/policy"))).NoError(t)
+	uc := usecase.New(infra.New(
+		infra.WithBigQuery(table.mock()),
+		infra.WithCloudStorage(newCloudTrailCSMock()),
+		infra.WithPolicy(pClient),
+	))
+
+	const loadCount = 4
+	var wg sync.WaitGroup
+	for i := 0; i < loadCount; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			gt.NoError(t, uc.Load(ctx, []*model.LoadRequest{newCloudTrailLoadRequest()}))
+		}()
+	}
+	wg.Wait()
+
+	// All messages write their rows through one stream of the table, each in one request.
+	streams := table.openedStreams()
+	gt.A(t, streams).Length(1)
+	gt.A(t, streams[0].stream.Inserted).Length(loadCount)
+	for _, rows := range streams[0].stream.Inserted {
+		gt.A(t, rows).Length(4) // cloudtrail_example.json has 4 records
+	}
+	// No pending stream is created.
+	gt.Equal(t, table.pendingInserts, 0)
+}
+
+func TestIngestRecordsUsesPendingStreamForLargeRows(t *testing.T) {
+	ctx := context.Background()
+	table := &fakeTable{}
+	cache := usecase.NewTableSchemaCache()
+	streams := usecase.NewTableStreamCache()
+
+	// A small message is written through the stream.
+	gt.R1(usecase.IngestRecords(ctx, table.mock(), cache, streams, testDst, newRecords(map[string]any{"a": "x"}), 1)).NoError(t)
+	gt.Equal(t, table.pendingInserts, 0)
+
+	// The rows of this message exceed the limit of one request together, but not one by one.
+	large := strings.Repeat("x", usecase.MaxDefaultStreamAppendBytes/2)
+	records := append(newRecords(map[string]any{"a": large}), newRecords(map[string]any{"a": large})...)
+	gt.R1(usecase.IngestRecords(ctx, table.mock(), cache, streams, testDst, records, 1)).NoError(t)
+
+	gt.Equal(t, table.pendingInserts, 1)
+	opened := table.openedStreams()
+	gt.A(t, opened).Length(1)
+	gt.A(t, opened[0].stream.Inserted).Length(1) // only the small message
+}
+
+func TestIngestRecordsLimitsDefaultStreamBySerializedSize(t *testing.T) {
+	const limit = usecase.MaxDefaultStreamAppendBytes
+	testCases := map[string]struct {
+		sizes          []int
+		pendingInserts int
+	}{
+		"total equals the limit":  {sizes: []int{limit / 2, limit - limit/2}, pendingInserts: 0},
+		"total exceeds the limit": {sizes: []int{limit / 2, limit - limit/2 + 1}, pendingInserts: 1},
+	}
+
+	for label, tc := range testCases {
+		t.Run(label, func(t *testing.T) {
+			ctx := context.Background()
+			table := &fakeTable{serializedSizes: tc.sizes}
+			records := append(newRecords(map[string]any{"a": "x"}), newRecords(map[string]any{"a": "y"})...)
+
+			gt.R1(usecase.IngestRecords(ctx, table.mock(), usecase.NewTableSchemaCache(), usecase.NewTableStreamCache(), testDst, records, 1)).NoError(t)
+
+			gt.Equal(t, table.pendingInserts, tc.pendingInserts)
+			gt.A(t, table.openedStreams()[0].stream.Inserted).Length(1 - tc.pendingInserts)
+		})
+	}
+}
+
+func TestIngestRecordsReplacesStreamForNewField(t *testing.T) {
+	ctx := context.Background()
+	table := &fakeTable{}
+	bqClient := table.mock()
+	cache := usecase.NewTableSchemaCache()
+	streams := usecase.NewTableStreamCache()
+
+	gt.R1(usecase.IngestRecords(ctx, bqClient, cache, streams, testDst, newRecords(map[string]any{"a": "x"}), 1)).NoError(t)
+	gt.R1(usecase.IngestRecords(ctx, bqClient, cache, streams, testDst, newRecords(map[string]any{"a": "x", "b": "y"}), 1)).NoError(t)
+
+	opened := table.openedStreams()
+	gt.A(t, opened).Length(2)
+	gt.False(t, hasDataField(opened[0].schema, "b"))
+	gt.True(t, hasDataField(opened[1].schema, "b"))
+	gt.True(t, opened[0].stream.IsClosed())
+	gt.False(t, opened[1].stream.IsClosed())
+	gt.A(t, opened[1].stream.Inserted).Length(1)
+
+	// A message without the new field keeps using the new stream because the table schema has not changed.
+	gt.R1(usecase.IngestRecords(ctx, bqClient, cache, streams, testDst, newRecords(map[string]any{"a": "x"}), 1)).NoError(t)
+	gt.A(t, table.openedStreams()).Length(2)
+	gt.A(t, opened[1].stream.Inserted).Length(2)
+}
+
+func TestIngestRecordsClosesReplacedStreamAfterInsertInProgress(t *testing.T) {
+	ctx := context.Background()
+	table := &fakeTable{}
+	bqClient := table.mock()
+	cache := usecase.NewTableSchemaCache()
+	streams := usecase.NewTableStreamCache()
+
+	// The first write through the first stream waits until finish is closed.
+	started := make(chan struct{})
+	finish := make(chan struct{})
+	var once sync.Once
+	table.onInsert = func(stream int) error {
+		if stream == 0 {
+			once.Do(func() {
+				close(started)
+				<-finish
+			})
+		}
+		return nil
+	}
+
+	done := make(chan error)
+	go func() {
+		_, err := usecase.IngestRecords(ctx, bqClient, cache, streams, testDst, newRecords(map[string]any{"a": "x"}), 1)
+		done <- err
+	}()
+	<-started
+
+	// Another message with a new field replaces the stream while the first message is still writing.
+	gt.R1(usecase.IngestRecords(ctx, bqClient, cache, streams, testDst, newRecords(map[string]any{"a": "x", "b": "y"}), 1)).NoError(t)
+	opened := table.openedStreams()
+	gt.A(t, opened).Length(2)
+	gt.False(t, opened[0].stream.IsClosed())
+
+	close(finish)
+	gt.NoError(t, <-done)
+	gt.True(t, opened[0].stream.IsClosed())
+	gt.False(t, opened[1].stream.IsClosed())
+}
+
+func TestUseCaseCloseClosesAllStreams(t *testing.T) {
+	ctx := context.Background()
+	bqClient := bq.NewGeneralMock()
+	pClient := gt.R1(policy.New(policy.WithDir("testdata/policy"))).NoError(t)
+	uc := usecase.New(
+		infra.New(
+			infra.WithBigQuery(bqClient),
+			infra.WithCloudStorage(newCloudTrailCSMock()),
+			infra.WithPolicy(pClient),
+		),
+		usecase.WithMetadata(model.NewMetadataConfig("test-dataset", "test-load-logs")),
+	)
+
+	gt.NoError(t, uc.Load(ctx, []*model.LoadRequest{newCloudTrailLoadRequest()}))
+
+	// One stream for the data table and one for load_logs.
+	var tables []types.BQTableID
+	for _, opened := range bqClient.OpenedStream {
+		tables = append(tables, opened.Table)
+	}
+	gt.A(t, tables).UnorderedEqual([]types.BQTableID{"cloudtrail", "test-load-logs"})
+	for _, s := range bqClient.Streams {
+		gt.False(t, s.IsClosed())
+	}
+
+	gt.NoError(t, uc.Close())
+	for _, s := range bqClient.Streams {
+		gt.True(t, s.IsClosed())
+	}
 }
 
 func TestIngestRecordBigNum(t *testing.T) {
@@ -255,7 +428,7 @@ func TestIngestRecordBigNum(t *testing.T) {
 		})
 	}
 
-	resp := gt.R1(usecase.IngestRecords(ctx, bqMock, usecase.NewTableSchemaCache(), dst, records, 32)).NoError(t)
+	resp := gt.R1(usecase.IngestRecords(ctx, bqMock, usecase.NewTableSchemaCache(), usecase.NewTableStreamCache(), dst, records, 32)).NoError(t)
 	gt.True(t, resp.Success)
 
 	/*

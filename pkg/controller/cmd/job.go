@@ -58,7 +58,7 @@ func jobCommand() *cli.Command {
 			&cli.IntFlag{
 				Name:        "message-concurrency",
 				EnvVars:     []string{"SWARM_MESSAGE_CONCURRENCY"},
-				Usage:       "Maximum number of Pub/Sub messages processed at the same time",
+				Usage:       "Maximum number of Pub/Sub messages processed at the same time. Messages that write to the same BigQuery table share one write stream of the table, so the number does not increase BigQuery write streams created per hour. Only a message whose rows for one table exceed 16 MiB after serialization creates a write stream of its own",
 				Destination: &messageConcurrency,
 				Value:       4,
 			},

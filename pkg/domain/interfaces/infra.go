@@ -27,7 +27,12 @@ type BigQuery interface {
 }
 
 type BigQueryStream interface {
+	// Insert serializes data with SerializeRows and writes them with InsertSerializedRows.
 	Insert(ctx context.Context, data []any) error
+	// SerializeRows converts data to rows of the schema that the stream was created with. The rows can be written only by InsertSerializedRows of the same stream.
+	SerializeRows(data []any) ([][]byte, error)
+	// InsertSerializedRows writes all rows in one AppendRows request and returns after BigQuery accepts it.
+	InsertSerializedRows(ctx context.Context, rows [][]byte) error
 	Close() error
 }
 
