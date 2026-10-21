@@ -133,7 +133,7 @@ func (x *Stream) appendRows(ctx context.Context, w *writer.Writer, rows [][]byte
 }
 
 // isRetryableAppendError returns false for errors that sending the same rows through a new managed stream can not fix. The codes follow retryPredicate of managedwriter in cloud.google.com/go/bigquery v1.85.0 (storage/managedwriter/retry.go), which also treats them as non-retryable:
-//   - InvalidArgument: rows are malformed or the request is too large (documented on ManagedStream.AppendRows).
+//   - InvalidArgument: the request itself is rejected, such as a request that is too large (documented on ManagedStream.AppendRows).
 //   - NotFound: the table does not exist.
 //   - PermissionDenied, Unauthenticated: the credential is not allowed to write the table.
 //
