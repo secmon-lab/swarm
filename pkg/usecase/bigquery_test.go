@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/m-mizutani/goerr/v2"
 	"github.com/m-mizutani/gt"
+	"github.com/secmon-lab/swarm/pkg/domain/interfaces"
 	"github.com/secmon-lab/swarm/pkg/domain/model"
 	"github.com/secmon-lab/swarm/pkg/domain/types"
 	"github.com/secmon-lab/swarm/pkg/infra/bq"
@@ -53,7 +54,7 @@ func TestCreateOrUpdateTable(t *testing.T) {
 		})).NoError(t)
 }
 
-// fakeTable is a BigQuery table on memory. It counts GetMetadata and UpdateTable calls, and UpdateTable fails with ErrTableETagMismatch as many times as failUpdates.
+// fakeTable is a BigQuery table on memory. It counts GetMetadata and UpdateTable calls, and UpdateTable fails with ErrTableETagMismatch as many times as failUpdates. Writing rows through a stream fails with ErrSchemaNotMatched as many times as failInserts.
 type fakeTable struct {
 	mutex       sync.Mutex
 	md          *bigquery.TableMetadata
@@ -62,6 +63,42 @@ type fakeTable struct {
 	updateCount int
 	failUpdates int
 	failInserts int
+
+	// streams are the streams opened by NewStream in order.
+	streams []openedStream
+	// pendingInserts is the number of BigQuery.Insert calls, which write rows through a pending stream.
+	pendingInserts int
+	// onInsert is called with the index of the stream in streams when rows are written through the stream, after failInserts is checked.
+	onInsert func(stream int) error
+	// serializedSizes, if set, replaces the serialization of streams: each data is serialized to a row of the size at the same index.
+	serializedSizes []int
+}
+
+type openedStream struct {
+	schema bigquery.Schema
+	stream *bq.MockStream
+}
+
+func (x *fakeTable) openedStreams() []openedStream {
+	x.mutex.Lock()
+	defer x.mutex.Unlock()
+	return append([]openedStream{}, x.streams...)
+}
+
+func (x *fakeTable) insertThroughStream(stream int) error {
+	x.mutex.Lock()
+	if x.failInserts > 0 {
+		x.failInserts--
+		x.mutex.Unlock()
+		return goerr.Wrap(types.ErrSchemaNotMatched, "table schema does not match")
+	}
+	onInsert := x.onInsert
+	x.mutex.Unlock()
+
+	if onInsert != nil {
+		return onInsert(stream)
+	}
+	return nil
 }
 
 func (x *fakeTable) mock() *bq.Mock {
@@ -100,13 +137,31 @@ func (x *fakeTable) mock() *bq.Mock {
 			x.md = &bigquery.TableMetadata{Schema: md.Schema, ETag: fmt.Sprintf("v%d", x.version)}
 			return nil
 		},
+		MockNewStream: func(ctx context.Context, datasetID types.BQDatasetID, tableID types.BQTableID, schema bigquery.Schema) (interfaces.BigQueryStream, error) {
+			x.mutex.Lock()
+			defer x.mutex.Unlock()
+			idx := len(x.streams)
+			s := &bq.MockStream{
+				MockInsertSerializedRows: func(ctx context.Context, rows [][]byte) error {
+					return x.insertThroughStream(idx)
+				},
+			}
+			if sizes := x.serializedSizes; sizes != nil {
+				s.MockSerializeRows = func(data []any) ([][]byte, error) {
+					rows := make([][]byte, len(data))
+					for i := range data {
+						rows[i] = make([]byte, sizes[i])
+					}
+					return rows, nil
+				}
+			}
+			x.streams = append(x.streams, openedStream{schema: schema, stream: s})
+			return s, nil
+		},
 		MockInsert: func(ctx context.Context, datasetID types.BQDatasetID, tableID types.BQTableID, data []any) error {
 			x.mutex.Lock()
 			defer x.mutex.Unlock()
-			if x.failInserts > 0 {
-				x.failInserts--
-				return goerr.Wrap(types.ErrSchemaNotMatched, "table schema does not match")
-			}
+			x.pendingInserts++
 			return nil
 		},
 	}
@@ -150,21 +205,22 @@ func TestIngestRecordsUpdatesTableForNewField(t *testing.T) {
 	table := &fakeTable{}
 	bqClient := table.mock()
 	cache := usecase.NewTableSchemaCache()
+	streams := usecase.NewTableStreamCache()
 
-	gt.R1(usecase.IngestRecords(ctx, bqClient, cache, testDst, newRecords(map[string]any{"a": "x"}), 1)).NoError(t)
+	gt.R1(usecase.IngestRecords(ctx, bqClient, cache, streams, testDst, newRecords(map[string]any{"a": "x"}), 1)).NoError(t)
 	get, update := table.counts()
 	gt.Equal(t, get, 1)
 	gt.Equal(t, update, 0)
 
 	// A record with a new field makes the table fetched and updated.
-	gt.R1(usecase.IngestRecords(ctx, bqClient, cache, testDst, newRecords(map[string]any{"a": "x", "b": "y"}), 1)).NoError(t)
+	gt.R1(usecase.IngestRecords(ctx, bqClient, cache, streams, testDst, newRecords(map[string]any{"a": "x", "b": "y"}), 1)).NoError(t)
 	get, update = table.counts()
 	gt.Equal(t, get, 2)
 	gt.Equal(t, update, 1)
 	gt.True(t, hasDataField(table.md.Schema, "b"))
 
 	// Fields that are already in the table do not cause any metadata call.
-	gt.R1(usecase.IngestRecords(ctx, bqClient, cache, testDst, newRecords(map[string]any{"b": "y"}), 1)).NoError(t)
+	gt.R1(usecase.IngestRecords(ctx, bqClient, cache, streams, testDst, newRecords(map[string]any{"b": "y"}), 1)).NoError(t)
 	get, update = table.counts()
 	gt.Equal(t, get, 2)
 	gt.Equal(t, update, 1)
@@ -175,11 +231,12 @@ func TestIngestRecordsRetriesOnETagMismatch(t *testing.T) {
 	table := &fakeTable{}
 	bqClient := table.mock()
 	cache := usecase.NewTableSchemaCache()
+	streams := usecase.NewTableStreamCache()
 
-	gt.R1(usecase.IngestRecords(ctx, bqClient, cache, testDst, newRecords(map[string]any{"a": "x"}), 1)).NoError(t)
+	gt.R1(usecase.IngestRecords(ctx, bqClient, cache, streams, testDst, newRecords(map[string]any{"a": "x"}), 1)).NoError(t)
 
 	table.failUpdates = 1
-	gt.R1(usecase.IngestRecords(ctx, bqClient, cache, testDst, newRecords(map[string]any{"a": "x", "b": "y"}), 1)).NoError(t)
+	gt.R1(usecase.IngestRecords(ctx, bqClient, cache, streams, testDst, newRecords(map[string]any{"a": "x", "b": "y"}), 1)).NoError(t)
 
 	// GetMetadata: create (1) + first update (1) + retry (1), UpdateTable: failed (1) + retry (1)
 	get, update := table.counts()
@@ -193,11 +250,12 @@ func TestIngestRecordsGivesUpETagMismatchRetries(t *testing.T) {
 	table := &fakeTable{}
 	bqClient := table.mock()
 	cache := usecase.NewTableSchemaCache()
+	streams := usecase.NewTableStreamCache()
 
-	gt.R1(usecase.IngestRecords(ctx, bqClient, cache, testDst, newRecords(map[string]any{"a": "x"}), 1)).NoError(t)
+	gt.R1(usecase.IngestRecords(ctx, bqClient, cache, streams, testDst, newRecords(map[string]any{"a": "x"}), 1)).NoError(t)
 
 	table.failUpdates = 100
-	_, err := usecase.IngestRecords(ctx, bqClient, cache, testDst, newRecords(map[string]any{"a": "x", "b": "y"}), 1)
+	_, err := usecase.IngestRecords(ctx, bqClient, cache, streams, testDst, newRecords(map[string]any{"a": "x", "b": "y"}), 1)
 	gt.Error(t, err)
 	gt.True(t, errors.Is(err, types.ErrTableETagMismatch))
 
@@ -210,17 +268,18 @@ func TestIngestRecordsRefetchesSchemaAfterSchemaMismatch(t *testing.T) {
 	table := &fakeTable{}
 	bqClient := table.mock()
 	cache := usecase.NewTableSchemaCache()
+	streams := usecase.NewTableStreamCache()
 
-	gt.R1(usecase.IngestRecords(ctx, bqClient, cache, testDst, newRecords(map[string]any{"a": "x"}), 1)).NoError(t)
+	gt.R1(usecase.IngestRecords(ctx, bqClient, cache, streams, testDst, newRecords(map[string]any{"a": "x"}), 1)).NoError(t)
 
 	table.failInserts = 1
-	_, err := usecase.IngestRecords(ctx, bqClient, cache, testDst, newRecords(map[string]any{"a": "x"}), 1)
+	_, err := usecase.IngestRecords(ctx, bqClient, cache, streams, testDst, newRecords(map[string]any{"a": "x"}), 1)
 	gt.True(t, errors.Is(err, types.ErrSchemaNotMatched))
 	get, _ := table.counts()
 	gt.Equal(t, get, 1)
 
 	// The next attempt fetches the table metadata again instead of using the discarded schema.
-	gt.R1(usecase.IngestRecords(ctx, bqClient, cache, testDst, newRecords(map[string]any{"a": "x"}), 1)).NoError(t)
+	gt.R1(usecase.IngestRecords(ctx, bqClient, cache, streams, testDst, newRecords(map[string]any{"a": "x"}), 1)).NoError(t)
 	get, _ = table.counts()
 	gt.Equal(t, get, 2)
 }

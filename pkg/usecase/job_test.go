@@ -11,9 +11,11 @@ import (
 	"testing"
 	"time"
 
+	"cloud.google.com/go/bigquery"
 	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	"github.com/m-mizutani/goerr/v2"
 	"github.com/m-mizutani/gt"
+	"github.com/secmon-lab/swarm/pkg/domain/interfaces"
 	"github.com/secmon-lab/swarm/pkg/domain/model"
 	"github.com/secmon-lab/swarm/pkg/domain/types"
 	"github.com/secmon-lab/swarm/pkg/infra"
@@ -135,6 +137,16 @@ var (
 
 // newJobUseCase returns UseCase that loads the CloudTrail example object for each message. Loading an object named "fail.log" fails after calling onFail. insert is called when records of a message are inserted.
 func newJobUseCase(t *testing.T, sub *fakeSubscription, onFail func(), insert func(), options ...usecase.Option) *usecase.UseCase {
+	return newJobUseCaseWithInsert(t, sub, onFail, func() error {
+		if insert != nil {
+			insert()
+		}
+		return nil
+	}, options...)
+}
+
+// newJobUseCaseWithInsert is newJobUseCase whose insert returns the result of writing records of a message.
+func newJobUseCaseWithInsert(t *testing.T, sub *fakeSubscription, onFail func(), insert func() error, options ...usecase.Option) *usecase.UseCase {
 	csClient := &cs.Mock{
 		MockOpen: func(ctx context.Context, obj model.CloudStorageObject) (io.ReadCloser, error) {
 			if obj.Name == "fail.log" {
@@ -147,11 +159,12 @@ func newJobUseCase(t *testing.T, sub *fakeSubscription, onFail func(), insert fu
 		},
 	}
 	bqClient := &bq.Mock{
-		MockInsert: func(ctx context.Context, datasetID types.BQDatasetID, tableID types.BQTableID, data []any) error {
-			if insert != nil {
-				insert()
-			}
-			return nil
+		MockNewStream: func(ctx context.Context, datasetID types.BQDatasetID, tableID types.BQTableID, schema bigquery.Schema) (interfaces.BigQueryStream, error) {
+			return &bq.MockStream{
+				MockInsertSerializedRows: func(ctx context.Context, rows [][]byte) error {
+					return insert()
+				},
+			}, nil
 		},
 	}
 	pClient := gt.R1(policy.New(policy.WithDir("testdata/policy"))).NoError(t)
@@ -331,6 +344,17 @@ func TestRunWithSubscriptionsNoDeadlineExtensionAfterAck(t *testing.T) {
 		}
 	}
 	gt.A(t, sub.ackedIDs()).Length(4)
+}
+
+func TestRunWithSubscriptionsDoesNotAckFailedInsert(t *testing.T) {
+	sub := newFakeSubscription(t, "obj-0.log")
+	// The stream returns an error when it gives up retrying appends.
+	errInsert := goerr.New("gave up appending rows")
+	uc := newJobUseCaseWithInsert(t, sub, nil, func() error { return errInsert }, usecase.WithMessageConcurrency(1))
+
+	err := uc.RunWithSubscriptions(context.Background(), []string{"sub"})
+	gt.True(t, errors.Is(err, errInsert))
+	gt.A(t, sub.ackedIDs()).Length(0)
 }
 
 func TestRunWithSubscriptionsInvalidConcurrency(t *testing.T) {

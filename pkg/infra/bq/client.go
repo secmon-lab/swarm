@@ -124,23 +124,34 @@ func convertDataToBytes(md protoreflect.MessageDescriptor, data []any) ([][]byte
 
 var errAppendCountMismatch = goerr.New("append count mismatch")
 
-func (x *Client) Insert(ctx context.Context, datasetID types.BQDatasetID, tableID types.BQTableID, schema bigquery.Schema, data []any) error {
+// schemaToDescriptor returns the protocol buffer descriptors to serialize rows of the schema.
+func schemaToDescriptor(schema bigquery.Schema) (protoreflect.MessageDescriptor, *descriptorpb.DescriptorProto, error) {
 	convertedSchema, err := adapt.BQSchemaToStorageTableSchema(schema)
 	if err != nil {
-		return goerr.Wrap(err, "failed to convert schema")
+		return nil, nil, goerr.Wrap(err, "failed to convert schema")
 	}
 
 	descriptor, err := adapt.StorageSchemaToProto2Descriptor(convertedSchema, "root")
 	if err != nil {
-		return goerr.Wrap(err, "failed to convert schema to descriptor")
+		return nil, nil, goerr.Wrap(err, "failed to convert schema to descriptor")
 	}
 	messageDescriptor, ok := descriptor.(protoreflect.MessageDescriptor)
 	if !ok {
-		return goerr.Wrap(err, "adapted descriptor is not a message descriptor")
+		return nil, nil, goerr.New("adapted descriptor is not a message descriptor")
 	}
 	descriptorProto, err := adapt.NormalizeDescriptor(messageDescriptor)
 	if err != nil {
-		return goerr.Wrap(err, "failed to normalize descriptor")
+		return nil, nil, goerr.Wrap(err, "failed to normalize descriptor")
+	}
+
+	return messageDescriptor, descriptorProto, nil
+}
+
+// Insert writes data through a new pending stream and commits it, so that all rows appear together or none of them do even when they are sent in several AppendRows requests. Creating a pending stream counts against the CreateWriteStream quota (10,000 per hour per project per region), so use NewStream for data that fits in one AppendRows request.
+func (x *Client) Insert(ctx context.Context, datasetID types.BQDatasetID, tableID types.BQTableID, schema bigquery.Schema, data []any) error {
+	messageDescriptor, descriptorProto, err := schemaToDescriptor(schema)
+	if err != nil {
+		return err
 	}
 
 	// After updating BigQuery schema, there is a delay for propagation of the schema change. According to the following document, it takes about 10 minutes.

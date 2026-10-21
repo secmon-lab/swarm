@@ -2,15 +2,18 @@ package bq
 
 import (
 	"context"
+	"encoding/json"
 	"sync"
 
 	"cloud.google.com/go/bigquery"
+	"github.com/m-mizutani/goerr/v2"
 	"github.com/secmon-lab/swarm/pkg/domain/interfaces"
 	"github.com/secmon-lab/swarm/pkg/domain/types"
 )
 
 type Mock struct {
 	MockQuery       func(ctx context.Context, query string) (interfaces.BigQueryIterator, error)
+	MockNewStream   (func(ctx context.Context, datasetID types.BQDatasetID, tableID types.BQTableID, schema bigquery.Schema) (interfaces.BigQueryStream, error))
 	MockInsert      (func(ctx context.Context, datasetID types.BQDatasetID, tableID types.BQTableID, data []any) error)
 	MockGetMetadata (func(ctx context.Context, datasetID types.BQDatasetID, tableID types.BQTableID) (*bigquery.TableMetadata, error))
 	MockUpdateTable (func(ctx context.Context, datasetID types.BQDatasetID, tableID types.BQTableID, md bigquery.TableMetadataToUpdate, eTag string) error)
@@ -31,17 +34,52 @@ func NewMock() *Mock {
 
 var _ interfaces.BigQuery = &Mock{}
 
+// MockStream records rows written to it. SerializeRows converts each data to JSON, so the size of a row is the size of its JSON.
 type MockStream struct {
-	mutex    sync.Mutex
-	Inserted [][]any
+	mutex sync.Mutex
+	// Inserted has the rows of each successful InsertSerializedRows call.
+	Inserted [][][]byte
 	Closed   bool
+
+	// MockSerializeRows replaces the JSON conversion of SerializeRows if set.
+	MockSerializeRows func(data []any) ([][]byte, error)
+	// MockInsertSerializedRows is called by InsertSerializedRows without holding the lock of MockStream. If it returns an error, the rows are not recorded.
+	MockInsertSerializedRows func(ctx context.Context, rows [][]byte) error
 }
 
 func (x *MockStream) Insert(ctx context.Context, data []any) error {
+	rows, err := x.SerializeRows(data)
+	if err != nil {
+		return err
+	}
+	return x.InsertSerializedRows(ctx, rows)
+}
+
+func (x *MockStream) SerializeRows(data []any) ([][]byte, error) {
+	if x.MockSerializeRows != nil {
+		return x.MockSerializeRows(data)
+	}
+	rows := make([][]byte, len(data))
+	for i, v := range data {
+		raw, err := json.Marshal(v)
+		if err != nil {
+			return nil, goerr.Wrap(err, "failed to marshal data", goerr.V("index", i))
+		}
+		rows[i] = raw
+	}
+	return rows, nil
+}
+
+func (x *MockStream) InsertSerializedRows(ctx context.Context, rows [][]byte) error {
+	if x.MockInsertSerializedRows != nil {
+		if err := x.MockInsertSerializedRows(ctx, rows); err != nil {
+			return err
+		}
+	}
+
 	x.mutex.Lock()
 	defer x.mutex.Unlock()
-
-	x.Inserted = append(x.Inserted, data)
+	x.Inserted = append(x.Inserted, rows)
 	return nil
 }
 
@@ -53,7 +91,28 @@ func (x *MockStream) Close() error {
 	return nil
 }
 
+// IsClosed returns Closed with holding the lock, for reading it while other goroutines use the stream.
+func (x *MockStream) IsClosed() bool {
+	x.mutex.Lock()
+	defer x.mutex.Unlock()
+	return x.Closed
+}
+
+// InsertedRows returns the number of rows written by successful InsertSerializedRows calls.
+func (x *MockStream) InsertedRows() int {
+	x.mutex.Lock()
+	defer x.mutex.Unlock()
+	n := 0
+	for _, rows := range x.Inserted {
+		n += len(rows)
+	}
+	return n
+}
+
 func (x *Mock) NewStream(ctx context.Context, datasetID types.BQDatasetID, tableID types.BQTableID, schema bigquery.Schema) (interfaces.BigQueryStream, error) {
+	if x.MockNewStream != nil {
+		return x.MockNewStream(ctx, datasetID, tableID, schema)
+	}
 	return &MockStream{}, nil
 }
 

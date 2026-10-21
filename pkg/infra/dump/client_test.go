@@ -56,3 +56,20 @@ func TestClient_Insert(t *testing.T) {
 
 	gt.Equal(t, records, expectedRecords)
 }
+
+func TestStream_Insert(t *testing.T) {
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+	client := dump.New(tmpDir)
+
+	// The stream writes to the same file as Client.Insert.
+	gt.NoError(t, client.Insert(ctx, "my_dataset", "my_table", nil, []any{map[string]any{"name": "Alice"}}))
+	s := gt.R1(client.NewStream(ctx, "my_dataset", "my_table", nil)).NoError(t)
+	gt.NoError(t, s.Insert(ctx, []any{map[string]any{"name": "Bob"}}))
+	rows := gt.R1(s.SerializeRows([]any{map[string]any{"name": "Carol"}})).NoError(t)
+	gt.NoError(t, s.InsertSerializedRows(ctx, rows))
+	gt.NoError(t, s.Close())
+
+	raw := gt.R1(os.ReadFile(filepath.Join(tmpDir, "my_dataset.my_table.log"))).NoError(t)
+	gt.Equal(t, string(raw), `{"name":"Alice"}`+"\n"+`{"name":"Bob"}`+"\n"+`{"name":"Carol"}`+"\n")
+}

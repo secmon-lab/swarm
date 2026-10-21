@@ -10,7 +10,9 @@ import (
 	"sync"
 	"time"
 
+	"cloud.google.com/go/bigquery"
 	"github.com/hashicorp/go-multierror"
+	"github.com/m-mizutani/bqs"
 	"github.com/m-mizutani/goerr/v2"
 	"github.com/secmon-lab/swarm/pkg/domain/interfaces"
 	"github.com/secmon-lab/swarm/pkg/domain/model"
@@ -105,7 +107,7 @@ func (x *UseCase) Load(ctx context.Context, requests []*model.LoadRequest) error
 			defer wg.Done()
 
 			for req := range reqCh {
-				log, err := ingestRecords(ctx, x.clients.BigQuery(), x.tableSchemas, req.dst, req.records, x.ingestRecordConcurrency)
+				log, err := ingestRecords(ctx, x.clients.BigQuery(), x.tableSchemas, x.tableStreams, req.dst, req.records, x.ingestRecordConcurrency)
 				logCh <- log
 				if err != nil {
 					log.Error = err.Error()
@@ -302,7 +304,135 @@ func downloadCloudStorageObject(ctx context.Context, csClient interfaces.CloudSt
 	return records, nil
 }
 
-func ingestRecords(ctx context.Context, bq interfaces.BigQuery, tableSchemas *tableSchemaCache, bqDst model.BigQueryDest, records []*model.LogRecord, concurrency int) (*model.IngestLog, error) {
+// maxDefaultStreamAppendBytes is the maximum total size of serialized rows that ingestRecords writes through the _default stream. All rows of one message are sent in one AppendRows request, and the request size is limited to 20 MB (Storage Write API quota in BigQuery quotas). The request also contains the framing of each row and the writer schema, so about 3 MB below the limit is left for them. Rows larger than this are written through a pending stream by BigQuery.Insert.
+const maxDefaultStreamAppendBytes = 16 * 1024 * 1024
+
+// tableStreamCache keeps a stream to the _default stream of each table, so that all messages writing to the same table share it. A _default stream does not count against the CreateWriteStream quota, unlike the pending stream created by BigQuery.Insert for each call.
+type tableStreamCache struct {
+	mutex   sync.Mutex
+	streams map[tableKey]*tableStream
+}
+
+// tableStream is a stream of a table and the schema that the stream was created with.
+type tableStream struct {
+	stream interfaces.BigQueryStream
+	schema bigquery.Schema
+
+	// users is the number of callers that acquired the stream and have not released it yet. It is protected by the mutex of tableStreamCache.
+	users int
+	// retired is true after the stream is removed from tableStreamCache. A retired stream is closed when users becomes 0. It is protected by the mutex of tableStreamCache.
+	retired bool
+}
+
+func newTableStreamCache() *tableStreamCache {
+	return &tableStreamCache{
+		streams: make(map[tableKey]*tableStream),
+	}
+}
+
+// acquire returns the stream of the table created with schema, and creates it if it does not exist. When the existing stream of the table was created with a different schema, acquire creates a new stream with schema, because a stream can not write fields that are not in the schema it was created with. The old stream is closed after all callers using it release it. The caller must call release with the returned stream.
+func (x *tableStreamCache) acquire(ctx context.Context, bq interfaces.BigQuery, datasetID types.BQDatasetID, tableID types.BQTableID, schema bigquery.Schema) (*tableStream, error) {
+	x.mutex.Lock()
+	key := tableKey{dataset: datasetID, table: tableID}
+	cur := x.streams[key]
+	if cur != nil && bqs.Equal(cur.schema, schema) {
+		cur.users++
+		x.mutex.Unlock()
+		return cur, nil
+	}
+
+	// The managed stream keeps the context passed at creation for its whole lifetime. The stream outlives the Load call that opens it, so it must not be canceled together with the context of that call.
+	s, err := bq.NewStream(context.WithoutCancel(ctx), datasetID, tableID, schema)
+	if err != nil {
+		x.mutex.Unlock()
+		return nil, goerr.Wrap(err, "failed to open stream", goerr.V("datasetID", datasetID), goerr.V("tableID", tableID))
+	}
+	created := &tableStream{stream: s, schema: schema, users: 1}
+	x.streams[key] = created
+
+	var idle *tableStream
+	if cur != nil {
+		utils.CtxLogger(ctx).Info("schema of table is changed, replacing stream", "datasetID", datasetID, "tableID", tableID)
+		cur.retired = true
+		if cur.users == 0 {
+			idle = cur
+		}
+	}
+	x.mutex.Unlock()
+
+	if idle != nil {
+		closeTableStream(ctx, idle)
+	}
+	return created, nil
+}
+
+// release ends the use of s acquired by acquire. If s has been retired and no caller uses it, release closes it.
+func (x *tableStreamCache) release(ctx context.Context, s *tableStream) {
+	x.mutex.Lock()
+	s.users--
+	idle := s.retired && s.users == 0
+	x.mutex.Unlock()
+
+	if idle {
+		closeTableStream(ctx, s)
+	}
+}
+
+// close retires all streams. Streams that no caller uses are closed at once, and the others are closed when they are released.
+func (x *tableStreamCache) close() error {
+	x.mutex.Lock()
+	var idle []*tableStream
+	for key, s := range x.streams {
+		s.retired = true
+		if s.users == 0 {
+			idle = append(idle, s)
+		}
+		delete(x.streams, key)
+	}
+	x.mutex.Unlock()
+
+	var mErr *multierror.Error
+	for _, s := range idle {
+		if err := s.stream.Close(); err != nil {
+			mErr = multierror.Append(mErr, goerr.Wrap(err, "failed to close table stream"))
+		}
+	}
+	return mErr.ErrorOrNil()
+}
+
+func closeTableStream(ctx context.Context, s *tableStream) {
+	if err := s.stream.Close(); err != nil {
+		utils.HandleError(ctx, "failed to close table stream", err)
+	}
+}
+
+// writeRecords writes data of one message to the table. All rows are sent in one AppendRows request through the shared _default stream of the table, so that all of them are written or none of them are. If the rows are larger than maxDefaultStreamAppendBytes, they are written through a pending stream by BigQuery.Insert instead, which commits all rows at once.
+func writeRecords(ctx context.Context, bq interfaces.BigQuery, streams *tableStreamCache, bqDst model.BigQueryDest, schema bigquery.Schema, data []any) error {
+	s, err := streams.acquire(ctx, bq, bqDst.Dataset, bqDst.Table, schema)
+	if err != nil {
+		return err
+	}
+	defer streams.release(ctx, s)
+
+	rows, err := s.stream.SerializeRows(data)
+	if err != nil {
+		return err
+	}
+
+	size := 0
+	for _, row := range rows {
+		size += len(row)
+	}
+	if size > maxDefaultStreamAppendBytes {
+		utils.CtxLogger(ctx).Info("rows are too large for one append request, writing through a pending stream",
+			"dst", bqDst, "rows", len(rows), "bytes", size)
+		return bq.Insert(ctx, bqDst.Dataset, bqDst.Table, schema, data)
+	}
+
+	return s.stream.InsertSerializedRows(ctx, rows)
+}
+
+func ingestRecords(ctx context.Context, bq interfaces.BigQuery, tableSchemas *tableSchemaCache, streams *tableStreamCache, bqDst model.BigQueryDest, records []*model.LogRecord, concurrency int) (*model.IngestLog, error) {
 	ingestID, ctx := utils.CtxIngestID(ctx)
 
 	result := &model.IngestLog{
@@ -344,7 +474,7 @@ func ingestRecords(ctx context.Context, bq interfaces.BigQuery, tableSchemas *ta
 		records[i].IngestID = ingestID
 		data[i] = records[i].Raw()
 	}
-	if err := bq.Insert(ctx, bqDst.Dataset, bqDst.Table, finalized, data); err != nil {
+	if err := writeRecords(ctx, bq, streams, bqDst, finalized, data); err != nil {
 		if errors.Is(err, types.ErrSchemaNotMatched) {
 			// The table schema was changed by another process. Fetch it again in the next attempt of this message.
 			tableSchemas.invalidate(bqDst.Dataset, bqDst.Table)
