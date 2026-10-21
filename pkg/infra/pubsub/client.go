@@ -54,16 +54,16 @@ func NewSubscriptionClient(ctx context.Context) (*SubscriptionClient, error) {
 	}, nil
 }
 
-func (x *SubscriptionClient) Pull(ctx context.Context, subName string) ([]*pubsubpb.ReceivedMessage, error) {
+func (x *SubscriptionClient) Pull(ctx context.Context, subName string, maxMessages int) ([]*pubsubpb.ReceivedMessage, error) {
 	req := pubsubpb.PullRequest{
 		Subscription:      subName,
-		MaxMessages:       1,
+		MaxMessages:       int32(maxMessages), // #nosec G115 -- maxMessages is bounded by the message concurrency option
 		ReturnImmediately: true,
 	}
 
 	res, err := x.client.Pull(ctx, &req)
 	if err != nil {
-		return nil, goerr.Wrap(err, "failed to pull message", goerr.V("subName", subName))
+		return nil, goerr.Wrap(err, "failed to pull message", goerr.V("subName", subName), goerr.V("maxMessages", maxMessages))
 	}
 
 	return res.ReceivedMessages, nil

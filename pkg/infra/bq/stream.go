@@ -3,6 +3,7 @@ package bq
 import (
 	"context"
 	"encoding/json"
+	"sync"
 	"time"
 
 	"github.com/secmon-lab/swarm/pkg/domain/types"
@@ -25,6 +26,11 @@ type Stream struct {
 	msgDescriptor protoreflect.MessageDescriptor
 
 	mgr *writer.Manager
+
+	// appendMutex serializes appends to the managed stream. The managedwriter documentation of the
+	// bigquery module in use does not state that ManagedStream.AppendRows is safe for concurrent use,
+	// and its implementation reads the request template without holding a lock.
+	appendMutex sync.Mutex
 }
 
 func newStream(ctx context.Context, mwClient *mw.Client, projectID types.GoogleProjectID, datasetID types.BQDatasetID, tableID types.BQTableID, schema bigquery.Schema) (*Stream, error) {
@@ -90,6 +96,10 @@ func (x *Stream) Insert(ctx context.Context, data []any) error {
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Minute)
 	defer cancel()
 	if err := backoff(ctx, func(c int) (bool, error) {
+		// Lock per attempt, not for the whole backoff, so that a long retry does not block other inserts between attempts.
+		x.appendMutex.Lock()
+		defer x.appendMutex.Unlock()
+
 		w := x.mgr.Writer(ctx)
 		defer w.Release()
 
@@ -101,6 +111,7 @@ func (x *Stream) Insert(ctx context.Context, data []any) error {
 				}
 				return false, nil // retry
 			}
+			return true, err
 		}
 
 		return true, nil // done without error

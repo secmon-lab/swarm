@@ -182,6 +182,7 @@ func serveCommand() *cli.Command {
 			}
 
 			uc := usecase.New(infra.New(infraOptions...), ucOptions...)
+			defer utils.SafeClose(uc)
 
 			var serverOptions []server.Option
 			if memoryLimit != "" {

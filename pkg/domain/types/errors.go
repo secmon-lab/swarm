@@ -26,6 +26,8 @@ var (
 	// Normal error
 	ErrBlockingPubSub   = goerr.New("blocking pubsub ack")
 	ErrSchemaNotMatched = goerr.New("schema not matched")
+	// ErrTableETagMismatch means the table was updated after its metadata (and ETag) was read.
+	ErrTableETagMismatch = goerr.New("table etag does not match")
 
 	// State error
 	ErrStateWaitTimeout = goerr.New("state wait timeout")

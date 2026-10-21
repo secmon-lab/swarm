@@ -4,6 +4,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"errors"
 	"math"
 	"runtime"
 	"sync"
@@ -66,11 +67,7 @@ func (x *UseCase) Load(ctx context.Context, requests []*model.LoadRequest) error
 	}
 
 	if x.metadata != nil {
-		schema, err := setupLoadLogTable(ctx, x.clients.BigQuery(), x.metadata)
-		if err != nil {
-			return err
-		}
-		s, err := x.clients.BigQuery().NewStream(ctx, x.metadata.Dataset(), x.metadata.Table(), schema)
+		s, err := x.openLoadLogStream(ctx)
 		if err != nil {
 			return err
 		}
@@ -108,7 +105,7 @@ func (x *UseCase) Load(ctx context.Context, requests []*model.LoadRequest) error
 			defer wg.Done()
 
 			for req := range reqCh {
-				log, err := ingestRecords(ctx, x.clients.BigQuery(), req.dst, req.records, x.ingestRecordConcurrency)
+				log, err := ingestRecords(ctx, x.clients.BigQuery(), x.tableSchemas, req.dst, req.records, x.ingestRecordConcurrency)
 				logCh <- log
 				if err != nil {
 					log.Error = err.Error()
@@ -133,6 +130,30 @@ func (x *UseCase) Load(ctx context.Context, requests []*model.LoadRequest) error
 
 	loadLog.Success = true
 	return nil
+}
+
+// openLoadLogStream returns the stream to write load_logs. The first call prepares the load_logs table and opens the stream, and later calls return the same stream. If preparing or opening fails, the next call tries again.
+func (x *UseCase) openLoadLogStream(ctx context.Context) (interfaces.BigQueryStream, error) {
+	x.loadLogStreamMutex.Lock()
+	defer x.loadLogStreamMutex.Unlock()
+
+	if x.loadLogStream != nil {
+		return x.loadLogStream, nil
+	}
+
+	schema, err := setupLoadLogTable(ctx, x.clients.BigQuery(), x.metadata)
+	if err != nil {
+		return nil, err
+	}
+
+	// The managed stream keeps the context passed at creation for its whole lifetime. The stream outlives the Load call that opens it, so it must not be canceled together with the context of that call.
+	s, err := x.clients.BigQuery().NewStream(context.WithoutCancel(ctx), x.metadata.Dataset(), x.metadata.Table(), schema)
+	if err != nil {
+		return nil, err
+	}
+
+	x.loadLogStream = s
+	return s, nil
 }
 
 type importSourceResponse struct {
@@ -281,7 +302,7 @@ func downloadCloudStorageObject(ctx context.Context, csClient interfaces.CloudSt
 	return records, nil
 }
 
-func ingestRecords(ctx context.Context, bq interfaces.BigQuery, bqDst model.BigQueryDest, records []*model.LogRecord, concurrency int) (*model.IngestLog, error) {
+func ingestRecords(ctx context.Context, bq interfaces.BigQuery, tableSchemas *tableSchemaCache, bqDst model.BigQueryDest, records []*model.LogRecord, concurrency int) (*model.IngestLog, error) {
 	ingestID, ctx := utils.CtxIngestID(ctx)
 
 	result := &model.IngestLog{
@@ -306,7 +327,7 @@ func ingestRecords(ctx context.Context, bq interfaces.BigQuery, bqDst model.BigQ
 		return result, err
 	}
 
-	finalized, err := createOrUpdateTable(ctx, bq, bqDst.Dataset, bqDst.Table, md)
+	finalized, err := tableSchemas.ensureTableSchema(ctx, bq, bqDst.Dataset, bqDst.Table, md)
 	if err != nil {
 		return result, goerr.Wrap(err, "failed to update schema", goerr.V("dst", bqDst))
 	}
@@ -324,6 +345,10 @@ func ingestRecords(ctx context.Context, bq interfaces.BigQuery, bqDst model.BigQ
 		data[i] = records[i].Raw()
 	}
 	if err := bq.Insert(ctx, bqDst.Dataset, bqDst.Table, finalized, data); err != nil {
+		if errors.Is(err, types.ErrSchemaNotMatched) {
+			// The table schema was changed by another process. Fetch it again in the next attempt of this message.
+			tableSchemas.invalidate(bqDst.Dataset, bqDst.Table)
+		}
 		return result, goerr.Wrap(err, "failed to insert data", goerr.V("dst", bqDst))
 	}
 	utils.CtxLogger(ctx).Debug("inserted data", "dst", bqDst, "count", len(data), "duration", time.Since(startedAt))

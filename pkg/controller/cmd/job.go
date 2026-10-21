@@ -19,6 +19,7 @@ func jobCommand() *cli.Command {
 		readConcurrency         int
 		ingestTableConcurrency  int
 		ingestRecordConcurrency int
+		messageConcurrency      int
 
 		bq       config.BigQuery
 		policy   config.Policy
@@ -54,6 +55,13 @@ func jobCommand() *cli.Command {
 				Destination: &ingestRecordConcurrency,
 				Value:       16,
 			},
+			&cli.IntFlag{
+				Name:        "message-concurrency",
+				EnvVars:     []string{"SWARM_MESSAGE_CONCURRENCY"},
+				Usage:       "Maximum number of Pub/Sub messages processed at the same time",
+				Destination: &messageConcurrency,
+				Value:       4,
+			},
 			&cli.StringFlag{
 				Name:        "memory-limit",
 				EnvVars:     []string{"SWARM_MEMORY_LIMIT"},
@@ -77,6 +85,7 @@ func jobCommand() *cli.Command {
 					"read-concurrency", readConcurrency,
 					"ingest-table-concurrency", ingestTableConcurrency,
 					"ingest-record-concurrency", ingestRecordConcurrency,
+					"message-concurrency", messageConcurrency,
 					"memory-limit", memoryLimit,
 
 					"bigquery", &bq,
@@ -119,6 +128,7 @@ func jobCommand() *cli.Command {
 			ucOptions := []usecase.Option{
 				usecase.WithIngestTableConcurrency(ingestTableConcurrency),
 				usecase.WithIngestRecordConcurrency(ingestRecordConcurrency),
+				usecase.WithMessageConcurrency(messageConcurrency),
 			}
 
 			if meta, err := metadata.Configure(); err != nil {
@@ -132,6 +142,7 @@ func jobCommand() *cli.Command {
 			}
 
 			uc := usecase.New(infra.New(infraOptions...), ucOptions...)
+			defer utils.SafeClose(uc)
 
 			return uc.RunWithSubscriptions(ctx, subscriptions.Value())
 		},
