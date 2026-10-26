@@ -88,7 +88,9 @@ The result of Rego evaluation creates a set called `src`. This set contains obje
 
 The rule can also set `ignore` to declare that the object must not be loaded.
 
-- `ignore`: (Optional, `boolean`) If `true`, Swarm does not load the object, and processing the object succeeds. A Pub/Sub message of the object is acknowledged, so it is not redelivered. `src` must be empty when `ignore` is `true`; otherwise processing the object fails because the rules contradict each other.
+- `ignore`: (Optional, `boolean`) If `true`, Swarm does not load the object, and processing the object succeeds. `src` must be empty when `ignore` is `true`; otherwise processing the object fails because the rules contradict each other.
+
+A Pub/Sub message is acknowledged when processing succeeds for all objects in the message. A notification from Cloud Storage has one object, so its message is acknowledged when the object is ignored. A message to `POST /event/pubsub/swarm` can have several objects, so it is not acknowledged if processing another object in it fails.
 
 If `src` is empty and `ignore` is not `true`, processing the object fails, and a Pub/Sub message of the object is not acknowledged. Use `ignore` to skip an object instead of leaving it out of `src`, so that an object that no rule handles by mistake is not skipped silently.
 

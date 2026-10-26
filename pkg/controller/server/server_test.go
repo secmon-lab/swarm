@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -167,6 +168,56 @@ func TestPubSubSwarmMessage(t *testing.T) {
 	gt.Equal(t, 1, calledLoad)
 	gt.Equal(t, 6, calledE2S)
 
+}
+
+func TestPubSubSwarmMessageIgnoredObjects(t *testing.T) {
+	// pubsub_swarm.json has 6 objects, and 4 of them are under "2024/02/03/01/21/".
+	testCases := map[string]struct {
+		ignored    func(name string) bool
+		calledLoad int
+		loaded     int
+	}{
+		"all objects are ignored": {
+			ignored:    func(name string) bool { return true },
+			calledLoad: 0,
+		},
+		"some objects are ignored": {
+			ignored:    func(name string) bool { return strings.HasPrefix(name, "2024/02/03/01/21/") },
+			calledLoad: 1,
+			loaded:     2,
+		},
+	}
+
+	for label, tc := range testCases {
+		t.Run(label, func(t *testing.T) {
+			var calledLoad int
+			mock := &usecase.Mock{
+				MockLoadData: func(ctx context.Context, req []*model.LoadRequest) error {
+					calledLoad++
+					gt.A(t, req).Length(tc.loaded)
+					for _, r := range req {
+						gt.False(t, tc.ignored(string(r.Object.CS.Name)))
+					}
+					return nil
+				},
+				// ObjectToSources returns no source and no error for an object ignored by the event rule.
+				MockObjectToSources: func(ctx context.Context, input model.Object) ([]*model.Source, error) {
+					if tc.ignored(string(input.CS.Name)) {
+						return nil, nil
+					}
+					return []*model.Source{{Parser: types.JSONParser, Schema: "cloudtrail"}}, nil
+				},
+			}
+
+			srv := server.New(mock)
+			r := httptest.NewRequest(http.MethodPost, "/event/pubsub/swarm", bytes.NewReader(pubsubBodySwarm))
+			w := httptest.NewRecorder()
+			srv.ServeHTTP(w, r)
+
+			gt.Equal(t, w.Code, http.StatusOK)
+			gt.Equal(t, calledLoad, tc.calledLoad)
+		})
+	}
 }
 
 func TestPubSubMessageBlock(t *testing.T) {
