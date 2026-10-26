@@ -169,6 +169,9 @@ func (x *UseCase) processPubSubMessage(ctx context.Context, msg *pubsubpb.Receiv
 	if err != nil {
 		return goerr.Wrap(err, "failed to convert event to sources", goerr.V("event", event))
 	}
+	if len(sources) == 0 {
+		return nil
+	}
 
 	loadReq := make([]*model.LoadRequest, len(sources))
 	for i := range sources {

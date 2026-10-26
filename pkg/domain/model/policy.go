@@ -20,6 +20,8 @@ type AuthPolicyOutput struct {
 
 type EventPolicyOutput struct {
 	Sources []*Source `json:"src"`
+	// Ignore is true when the event rule declares that the object must not be loaded. Sources must be empty when Ignore is true.
+	Ignore bool `json:"ignore"`
 }
 
 type Source struct {

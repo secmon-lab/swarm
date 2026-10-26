@@ -29,6 +29,9 @@ func handleSwarmEvent(ctx context.Context, uc interfaces.UseCase, data []byte) e
 			})
 		}
 	}
+	if len(loadReq) == 0 {
+		return nil
+	}
 
 	if err := uc.Load(ctx, loadReq); err != nil {
 		return goerr.Wrap(err, "failed to handle swarm event", goerr.V("event", event))
@@ -47,6 +50,9 @@ func handleCloudStorageEvent(ctx context.Context, uc interfaces.UseCase, data []
 	sources, err := uc.ObjectToSources(ctx, obj)
 	if err != nil {
 		return goerr.Wrap(err, "failed to convert event to sources", goerr.V("event", event))
+	}
+	if len(sources) == 0 {
+		return nil
 	}
 
 	loadReq := make([]*model.LoadRequest, len(sources))

@@ -86,6 +86,24 @@ The result of Rego evaluation creates a set called `src`. This set contains obje
 - `compress`: (Optional, `string`) Specifies the compression type if the object is compressed. Currently, only `gzip` is supported.
   - Note: If `contentEncoding` is specified as `gzip` in Cloud Storage, the object is automatically decompressed during retrieval, so this parameter is not necessary.
 
+The rule can also set `ignore` to declare that the object must not be loaded.
+
+- `ignore`: (Optional, `boolean`) If `true`, Swarm does not load the object, and processing the object succeeds. `src` must be empty when `ignore` is `true`; otherwise processing the object fails because the rules contradict each other.
+
+A Pub/Sub message is acknowledged when processing succeeds for all objects in the message. A notification from Cloud Storage has one object, so its message is acknowledged when the object is ignored. A message to `POST /event/pubsub/swarm` can have several objects, so it is not acknowledged if processing another object in it fails.
+
+If `src` is empty and `ignore` is not `true`, processing the object fails, and a Pub/Sub message of the object is not acknowledged. Use `ignore` to skip an object instead of leaving it out of `src`, so that an object that no rule handles by mistake is not skipped silently.
+
+```rego
+package event
+
+# Skip write-check objects that a log streaming service puts in the bucket
+ignore if {
+    input.cs.bucket == "mztn-sample-bucket"
+    startswith(input.cs.name, "_check/")
+}
+```
+
 ### Example
 
 You can describe rules such as the following. These rules define how to capture `.log.gz` and `.log` files in the `mydir` directory within the `mztn-sample-bucket` bucket.
