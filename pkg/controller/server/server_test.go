@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/m-mizutani/goerr/v2"
 	"github.com/m-mizutani/gt"
 	"github.com/secmon-lab/swarm/pkg/controller/server"
 	"github.com/secmon-lab/swarm/pkg/domain/model"
@@ -105,15 +104,16 @@ func TestPubSubCloudStorage(t *testing.T) {
 	}
 }
 
-func TestPubSubCloudStorageWithoutEventRule(t *testing.T) {
+func TestPubSubCloudStorageIgnoredObject(t *testing.T) {
 	var calledLoad int
 	mock := &usecase.Mock{
 		MockLoadData: func(ctx context.Context, req []*model.LoadRequest) error {
 			calledLoad++
 			return nil
 		},
+		// ObjectToSources returns no source and no error for an object ignored by the event rule.
 		MockObjectToSources: func(ctx context.Context, input model.Object) ([]*model.Source, error) {
-			return nil, goerr.Wrap(types.ErrNoPolicyResult, "no source in event")
+			return nil, nil
 		},
 	}
 
@@ -237,6 +237,9 @@ func TestPubSubMessageBlock(t *testing.T) {
 				MockLoadData: func(ctx context.Context, req []*model.LoadRequest) error {
 					calledLoad++
 					return tc.loadError
+				},
+				MockObjectToSources: func(ctx context.Context, input model.Object) ([]*model.Source, error) {
+					return []*model.Source{{Parser: types.JSONParser, Schema: "cloudtrail"}}, nil
 				},
 				MockGetOrCreateState: func(ctx context.Context, msgType types.MsgType, id string) (*model.State, bool, error) {
 					calledGetOrCreateState++

@@ -42,6 +42,9 @@ func (x *UseCase) LoadDataByObject(ctx context.Context, url types.CSUrl) error {
 	if err != nil {
 		return goerr.Wrap(err, "failed to convert event to sources")
 	}
+	if len(sources) == 0 {
+		return nil
+	}
 
 	var loadReq []*model.LoadRequest
 	for _, src := range sources {

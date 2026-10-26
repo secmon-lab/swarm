@@ -3,13 +3,10 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"errors"
 
 	"github.com/m-mizutani/goerr/v2"
 	"github.com/secmon-lab/swarm/pkg/domain/interfaces"
 	"github.com/secmon-lab/swarm/pkg/domain/model"
-	"github.com/secmon-lab/swarm/pkg/domain/types"
-	"github.com/secmon-lab/swarm/pkg/utils"
 )
 
 func handleSwarmEvent(ctx context.Context, uc interfaces.UseCase, data []byte) error {
@@ -32,6 +29,9 @@ func handleSwarmEvent(ctx context.Context, uc interfaces.UseCase, data []byte) e
 			})
 		}
 	}
+	if len(loadReq) == 0 {
+		return nil
+	}
 
 	if err := uc.Load(ctx, loadReq); err != nil {
 		return goerr.Wrap(err, "failed to handle swarm event", goerr.V("event", event))
@@ -48,13 +48,11 @@ func handleCloudStorageEvent(ctx context.Context, uc interfaces.UseCase, data []
 
 	obj := event.ToObject()
 	sources, err := uc.ObjectToSources(ctx, obj)
-	if errors.Is(err, types.ErrNoPolicyResult) {
-		// Returning the error would make Pub/Sub redeliver the message forever because no event rule will ever match the object.
-		utils.CtxLogger(ctx).Warn("skip message because no event rule matches the object", "event", event)
-		return nil
-	}
 	if err != nil {
 		return goerr.Wrap(err, "failed to convert event to sources", goerr.V("event", event))
+	}
+	if len(sources) == 0 {
+		return nil
 	}
 
 	loadReq := make([]*model.LoadRequest, len(sources))

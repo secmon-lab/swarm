@@ -3,7 +3,6 @@ package usecase
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"time"
 
 	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
@@ -167,13 +166,11 @@ func (x *UseCase) processPubSubMessage(ctx context.Context, msg *pubsubpb.Receiv
 
 	obj := event.ToObject()
 	sources, err := x.ObjectToSources(ctx, obj)
-	if errors.Is(err, types.ErrNoPolicyResult) {
-		// Returning the error would leave the message unacknowledged, and Pub/Sub would redeliver it forever because no event rule will ever match the object.
-		logger.Warn("skip message because no event rule matches the object", "event", event)
-		return nil
-	}
 	if err != nil {
 		return goerr.Wrap(err, "failed to convert event to sources", goerr.V("event", event))
+	}
+	if len(sources) == 0 {
+		return nil
 	}
 
 	loadReq := make([]*model.LoadRequest, len(sources))

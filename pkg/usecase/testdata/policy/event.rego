@@ -18,3 +18,8 @@ src contains {
 	input.cs.bucket == "cloudtrail-logs"
 	endswith(input.cs.name, ".gz")
 }
+
+ignore if {
+	input.cs.bucket == "cloudtrail-logs"
+	startswith(input.cs.name, "ignored/")
+}
