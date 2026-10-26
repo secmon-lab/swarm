@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/m-mizutani/goerr/v2"
 	"github.com/m-mizutani/gt"
 	"github.com/secmon-lab/swarm/pkg/controller/server"
 	"github.com/secmon-lab/swarm/pkg/domain/model"
@@ -102,6 +103,28 @@ func TestPubSubCloudStorage(t *testing.T) {
 			gt.Equal(t, tc.calledE2S, calledE2S)
 		})
 	}
+}
+
+func TestPubSubCloudStorageWithoutEventRule(t *testing.T) {
+	var calledLoad int
+	mock := &usecase.Mock{
+		MockLoadData: func(ctx context.Context, req []*model.LoadRequest) error {
+			calledLoad++
+			return nil
+		},
+		MockObjectToSources: func(ctx context.Context, input model.Object) ([]*model.Source, error) {
+			return nil, goerr.Wrap(types.ErrNoPolicyResult, "no source in event")
+		},
+	}
+
+	srv := server.New(mock)
+	r := httptest.NewRequest(http.MethodPost, "/event/pubsub/cs", bytes.NewReader(pubsubBody))
+	w := httptest.NewRecorder()
+	srv.ServeHTTP(w, r)
+
+	// A success status makes Pub/Sub stop redelivering the message.
+	gt.Equal(t, w.Code, http.StatusOK)
+	gt.Equal(t, calledLoad, 0)
 }
 
 //go:embed testdata/http/pubsub_swarm.json

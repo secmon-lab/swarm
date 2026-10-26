@@ -357,6 +357,17 @@ func TestRunWithSubscriptionsDoesNotAckFailedInsert(t *testing.T) {
 	gt.A(t, sub.ackedIDs()).Length(0)
 }
 
+func TestRunWithSubscriptionsAcknowledgesObjectWithoutEventRule(t *testing.T) {
+	// No event rule in testdata/policy matches "_check/obj-1", whose name ends with neither ".log" nor ".gz".
+	sub := newFakeSubscription(t, "obj-0.log", "_check/obj-1", "obj-2.log")
+	uc := newJobUseCase(t, sub, nil, nil, usecase.WithMessageConcurrency(1))
+
+	gt.NoError(t, uc.RunWithSubscriptions(context.Background(), []string{"sub"}))
+
+	// The message is acknowledged so that it is not redelivered, and the following messages are still processed.
+	gt.A(t, sub.ackedIDs()).Equal([]string{"obj-0.log", "_check/obj-1", "obj-2.log"})
+}
+
 func TestRunWithSubscriptionsInvalidConcurrency(t *testing.T) {
 	sub := newFakeSubscription(t, "obj-0.log")
 	uc := newJobUseCase(t, sub, nil, nil, usecase.WithMessageConcurrency(0))

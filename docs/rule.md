@@ -86,6 +86,8 @@ The result of Rego evaluation creates a set called `src`. This set contains obje
 - `compress`: (Optional, `string`) Specifies the compression type if the object is compressed. Currently, only `gzip` is supported.
   - Note: If `contentEncoding` is specified as `gzip` in Cloud Storage, the object is automatically decompressed during retrieval, so this parameter is not necessary.
 
+If `src` is empty for an object notified via Pub/Sub (`swarm job` and `POST /event/pubsub/cs`), Swarm does not load the object and acknowledges the message with a warning log. Leave an object out of `src` to skip it. The `swarm ingest` and `swarm schema` commands, which read objects specified by the user, fail instead.
+
 ### Example
 
 You can describe rules such as the following. These rules define how to capture `.log.gz` and `.log` files in the `mydir` directory within the `mztn-sample-bucket` bucket.
