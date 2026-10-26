@@ -358,8 +358,8 @@ func TestRunWithSubscriptionsDoesNotAckFailedInsert(t *testing.T) {
 }
 
 func TestRunWithSubscriptionsAcknowledgesIgnoredObject(t *testing.T) {
-	// The event rule in testdata/policy ignores objects under "ignored/", even though "ignored/obj-1.log" also matches a src rule.
-	sub := newFakeSubscription(t, "obj-0.log", "ignored/obj-1.log", "obj-2.log")
+	// The event rule in testdata/policy ignores objects under "ignored/". "ignored/obj-1.txt" matches no src rule.
+	sub := newFakeSubscription(t, "obj-0.log", "ignored/obj-1.txt", "obj-2.log")
 	var inserted int
 	insert := func() { inserted++ }
 	uc := newJobUseCase(t, sub, nil, insert, usecase.WithMessageConcurrency(1))
@@ -367,9 +367,19 @@ func TestRunWithSubscriptionsAcknowledgesIgnoredObject(t *testing.T) {
 	gt.NoError(t, uc.RunWithSubscriptions(context.Background(), []string{"sub"}))
 
 	// The message is acknowledged so that it is not redelivered, and the following messages are still processed.
-	gt.A(t, sub.ackedIDs()).Equal([]string{"obj-0.log", "ignored/obj-1.log", "obj-2.log"})
+	gt.A(t, sub.ackedIDs()).Equal([]string{"obj-0.log", "ignored/obj-1.txt", "obj-2.log"})
 	// Records of the ignored object are not inserted. Records of one object are inserted at once.
 	gt.Equal(t, inserted, 2)
+}
+
+func TestRunWithSubscriptionsFailsForObjectBothIgnoredAndMatched(t *testing.T) {
+	// "ignored/obj-1.log" is ignored by the event rule in testdata/policy and also matches the src rule for ".log".
+	sub := newFakeSubscription(t, "obj-0.log", "ignored/obj-1.log", "obj-2.log")
+	uc := newJobUseCase(t, sub, nil, nil, usecase.WithMessageConcurrency(1))
+
+	err := uc.RunWithSubscriptions(context.Background(), []string{"sub"})
+	gt.True(t, errors.Is(err, types.ErrInvalidPolicyResult))
+	gt.A(t, sub.ackedIDs()).Equal([]string{"obj-0.log"})
 }
 
 func TestRunWithSubscriptionsFailsForObjectWithoutEventRule(t *testing.T) {

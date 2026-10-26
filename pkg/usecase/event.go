@@ -16,6 +16,9 @@ func (x *UseCase) ObjectToSources(ctx context.Context, obj model.Object) ([]*mod
 		return nil, err
 	}
 	if event.Ignore {
+		if len(event.Sources) > 0 {
+			return nil, goerr.Wrap(types.ErrInvalidPolicyResult, "event rule both ignores the object and returns sources", goerr.V("input", obj), goerr.V("sources", event.Sources))
+		}
 		utils.CtxLogger(ctx).Info("object is ignored by event rule", "object", obj)
 		return nil, nil
 	}
