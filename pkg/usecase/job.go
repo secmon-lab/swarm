@@ -17,20 +17,37 @@ func (x *UseCase) RunWithSubscriptions(ctx context.Context, subscriptions []stri
 	if x.messageConcurrency < 1 {
 		return goerr.Wrap(types.ErrInvalidOption, "message concurrency must be 1 or more", goerr.V("messageConcurrency", x.messageConcurrency))
 	}
+	if x.stopPullingAfter < 0 {
+		return goerr.Wrap(types.ErrInvalidOption, "stop pulling after must be 0 or more", goerr.V("stopPullingAfter", x.stopPullingAfter))
+	}
 
-	utils.CtxLogger(ctx).Info("starting job", "subscriptions", subscriptions, "messageConcurrency", x.messageConcurrency)
+	utils.CtxLogger(ctx).Info("starting job", "subscriptions", subscriptions, "messageConcurrency", x.messageConcurrency, "stopPullingAfter", x.stopPullingAfter)
+
+	// A zero time means that pulling never stops by time.
+	var pullDeadline time.Time
+	if x.stopPullingAfter > 0 {
+		pullDeadline = x.now().Add(x.stopPullingAfter)
+	}
 
 	for _, subName := range subscriptions {
-		if err := x.runWithSubscription(ctx, subName); err != nil {
+		if err := x.runWithSubscription(ctx, subName, pullDeadline); err != nil {
 			return err
+		}
+		if x.pullDeadlinePassed(pullDeadline) {
+			utils.CtxLogger(ctx).Info("stop pulling because the pull deadline has passed", "pullDeadline", pullDeadline, "lastSubscription", subName)
+			return nil
 		}
 	}
 
 	return nil
 }
 
-// runWithSubscription processes messages of the subscription until the subscription has no message. It processes at most x.messageConcurrency messages at the same time. When processing a message fails, it stops pulling new messages, waits for the messages in process, and returns the first error.
-func (x *UseCase) runWithSubscription(ctx context.Context, subName string) error {
+func (x *UseCase) pullDeadlinePassed(pullDeadline time.Time) bool {
+	return !pullDeadline.IsZero() && !x.now().Before(pullDeadline)
+}
+
+// runWithSubscription processes messages of the subscription until the subscription has no message or pullDeadline passes. It processes at most x.messageConcurrency messages at the same time. After pullDeadline, it pulls no new message and waits for the messages in process, so that the job can finish before the task timeout of the platform kills it and the messages in process are redelivered. When processing a message fails, it stops pulling new messages, waits for the messages in process, and returns the first error.
+func (x *UseCase) runWithSubscription(ctx context.Context, subName string, pullDeadline time.Time) error {
 	utils.CtxLogger(ctx).Info("starting job", "subscription", subName)
 
 	pullClient := x.clients.PubSubSubscription()
@@ -59,6 +76,10 @@ func (x *UseCase) runWithSubscription(ctx context.Context, subName string) error
 	for {
 		receiveAvailableResults()
 		if firstErr != nil {
+			break
+		}
+
+		if x.pullDeadlinePassed(pullDeadline) {
 			break
 		}
 

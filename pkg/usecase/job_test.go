@@ -392,6 +392,67 @@ func TestRunWithSubscriptionsFailsForObjectWithoutEventRule(t *testing.T) {
 	gt.A(t, sub.ackedIDs()).Equal([]string{"obj-0.log"})
 }
 
+// fakeClock is a clock that advances only when advance is called.
+type fakeClock struct {
+	mutex sync.Mutex
+	now   time.Time
+}
+
+func (x *fakeClock) Now() time.Time {
+	x.mutex.Lock()
+	defer x.mutex.Unlock()
+	return x.now
+}
+
+func (x *fakeClock) advance(d time.Duration) {
+	x.mutex.Lock()
+	defer x.mutex.Unlock()
+	x.now = x.now.Add(d)
+}
+
+func TestRunWithSubscriptionsStopsPullingAfterDeadline(t *testing.T) {
+	// The same messages are delivered for both subscription names, so the events of the second subscription are added to sub.
+	sub := newFakeSubscription(t, "obj-0.log", "obj-1.log", "obj-2.log", "obj-3.log", "obj-4.log")
+	sub.messagesPerPull = 3
+
+	// Processing the first messages takes the whole duration.
+	clock := &fakeClock{now: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)}
+	insert := func() { clock.advance(time.Minute) }
+	uc := newJobUseCase(t, sub, nil, insert, usecase.WithMessageConcurrency(3), usecase.WithStopPullingAfter(time.Minute))
+	uc.SetNow(clock.Now)
+
+	gt.NoError(t, uc.RunWithSubscriptions(context.Background(), []string{"sub-a", "sub-b"}))
+
+	// The messages in process at the deadline are acknowledged.
+	gt.A(t, sub.ackedIDs()).UnorderedEqual([]string{"obj-0.log", "obj-1.log", "obj-2.log"})
+	// No message is pulled after the deadline, from either subscription.
+	gt.A(t, sub.eventsOf("pull")).Length(1)
+}
+
+func TestRunWithSubscriptionsPullsUntilDeadline(t *testing.T) {
+	sub := newFakeSubscription(t, "obj-0.log", "obj-1.log", "obj-2.log", "obj-3.log")
+
+	// Each message takes 20 seconds, so the deadline passes while the third message is processed.
+	clock := &fakeClock{now: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)}
+	insert := func() { clock.advance(20 * time.Second) }
+	uc := newJobUseCase(t, sub, nil, insert, usecase.WithMessageConcurrency(1), usecase.WithStopPullingAfter(50*time.Second))
+	uc.SetNow(clock.Now)
+
+	gt.NoError(t, uc.RunWithSubscriptions(context.Background(), []string{"sub"}))
+
+	gt.A(t, sub.ackedIDs()).Equal([]string{"obj-0.log", "obj-1.log", "obj-2.log"})
+	gt.A(t, sub.eventsOf("pull")).Length(3)
+}
+
+func TestRunWithSubscriptionsInvalidStopPullingAfter(t *testing.T) {
+	sub := newFakeSubscription(t, "obj-0.log")
+	uc := newJobUseCase(t, sub, nil, nil, usecase.WithStopPullingAfter(-time.Second))
+
+	err := uc.RunWithSubscriptions(context.Background(), []string{"sub"})
+	gt.True(t, errors.Is(err, types.ErrInvalidOption))
+	gt.A(t, sub.eventsOf("pull")).Length(0)
+}
+
 func TestRunWithSubscriptionsInvalidConcurrency(t *testing.T) {
 	sub := newFakeSubscription(t, "obj-0.log")
 	uc := newJobUseCase(t, sub, nil, nil, usecase.WithMessageConcurrency(0))

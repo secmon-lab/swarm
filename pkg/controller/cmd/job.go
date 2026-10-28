@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"log/slog"
+	"time"
 
 	"github.com/m-mizutani/goerr/v2"
 	"github.com/secmon-lab/swarm/pkg/controller/cmd/config"
@@ -20,6 +21,7 @@ func jobCommand() *cli.Command {
 		ingestTableConcurrency  int
 		ingestRecordConcurrency int
 		messageConcurrency      int
+		stopPullingAfter        time.Duration
 
 		bq       config.BigQuery
 		policy   config.Policy
@@ -62,6 +64,12 @@ func jobCommand() *cli.Command {
 				Destination: &messageConcurrency,
 				Value:       4,
 			},
+			&cli.DurationFlag{
+				Name:        "stop-pulling-after",
+				EnvVars:     []string{"SWARM_STOP_PULLING_AFTER"},
+				Usage:       "Duration from the start of the job after which no new Pub/Sub message is pulled (e.g. 7m). Messages in process are still processed and acknowledged, the remaining subscriptions are not pulled, and the job exits successfully. Set it shorter than the task timeout of the platform by the time to process the slowest message, so that the platform does not kill the job while it processes messages. 0 disables it",
+				Destination: &stopPullingAfter,
+			},
 			&cli.StringFlag{
 				Name:        "memory-limit",
 				EnvVars:     []string{"SWARM_MEMORY_LIMIT"},
@@ -86,6 +94,7 @@ func jobCommand() *cli.Command {
 					"ingest-table-concurrency", ingestTableConcurrency,
 					"ingest-record-concurrency", ingestRecordConcurrency,
 					"message-concurrency", messageConcurrency,
+					"stop-pulling-after", stopPullingAfter,
 					"memory-limit", memoryLimit,
 
 					"bigquery", &bq,
@@ -129,6 +138,7 @@ func jobCommand() *cli.Command {
 				usecase.WithIngestTableConcurrency(ingestTableConcurrency),
 				usecase.WithIngestRecordConcurrency(ingestRecordConcurrency),
 				usecase.WithMessageConcurrency(messageConcurrency),
+				usecase.WithStopPullingAfter(stopPullingAfter),
 			}
 
 			if meta, err := metadata.Configure(); err != nil {
