@@ -18,3 +18,7 @@ type TableStreamCache = tableStreamCache
 func (x *UseCase) SetAckDeadlineExtendInterval(d time.Duration) {
 	x.ackDeadlineExtendInterval = d
 }
+
+func (x *UseCase) SetNow(now func() time.Time) {
+	x.now = now
+}

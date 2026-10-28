@@ -41,6 +41,11 @@ type UseCase struct {
 	// ackDeadlineExtension is the ack deadline set by each extension.
 	ackDeadlineExtension time.Duration
 
+	// stopPullingAfter is the duration from the start of RunWithSubscriptions after which no new Pub/Sub message is pulled. 0 means that pulling never stops by time.
+	stopPullingAfter time.Duration
+	// now returns the current time. It is replaced in tests.
+	now func() time.Time
+
 	tableSchemas *tableSchemaCache
 
 	// tableStreams keeps the stream of each table to write data. Streams are opened by Load and closed by Close.
@@ -81,6 +86,7 @@ func New(clients *infra.Clients, options ...Option) *UseCase {
 		messageConcurrency:        defaultMessageConcurrency,
 		ackDeadlineExtendInterval: defaultAckDeadlineExtendInterval,
 		ackDeadlineExtension:      defaultAckDeadlineExtension,
+		now:                       time.Now,
 		tableSchemas:              newTableSchemaCache(),
 		tableStreams:              newTableStreamCache(),
 	}
@@ -177,6 +183,13 @@ func WithIngestRecordConcurrency(n int) Option {
 func WithMessageConcurrency(n int) Option {
 	return func(uc *UseCase) {
 		uc.messageConcurrency = n
+	}
+}
+
+// WithStopPullingAfter sets the duration from the start of RunWithSubscriptions after which no new Pub/Sub message is pulled. Messages in process are still processed and acknowledged. 0 disables it. A negative value is kept as is so that RunWithSubscriptions rejects it.
+func WithStopPullingAfter(d time.Duration) Option {
+	return func(uc *UseCase) {
+		uc.stopPullingAfter = d
 	}
 }
 
